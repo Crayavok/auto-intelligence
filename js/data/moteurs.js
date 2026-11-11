@@ -1,0 +1,411 @@
+// Base de connaissances : motorisations.
+// Rédaction initiale par l'IA (novembre 2026) à partir de connaissances générales sur le marché de l'occasion.
+// Ces fiches sont un POINT DE DÉPART : chaque information doit être confirmée et rattachée à des sources datées.
+// Voir js/data/boites.js pour la signification des champs gravite / recurrence / confiance / nature.
+//
+// kmReference  : durée de vie indicative du moteur bien entretenu, utilisée pour contextualiser le kilométrage.
+// connaissance : « Indice de connaissance du véhicule » (0-100) : quantité et qualité des informations disponibles.
+
+export const MOTEURS = [
+  // ───────────── PSA / Stellantis ─────────────
+  {
+    id: "puretech12", nom: "1.2 PureTech 110 / 130", code: "EB2DT / EB2DTS", constructeur: "PSA",
+    carburant: "essence", cylindres: 3, architecture: "3 cylindres en ligne", cylindree: 1.2, alimentation: "turbo",
+    distribution: "courroie humide", kmReference: 200000, connaissance: 92, coutEntretien: "modéré",
+    forces: ["Sobre et vif", "Bon agrément en usage quotidien"],
+    defauts: [
+      { titre: "Dégradation de la courroie de distribution humide", detail: "La courroie baignant dans l'huile se désagrège : les particules colmatent la crépine de pompe à huile, avec un risque de casse moteur, et peuvent perturber l'assistance de freinage. Stellantis a mis en place un programme d'extension de prise en charge sous conditions d'entretien : vérifier l'éligibilité.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2013-2022" },
+      { titre: "Consommation d'huile excessive", detail: "Surconsommation liée à la segmentation, aggravant l'usure de la courroie.", gravite: 2, recurrence: "fréquente", confiance: "moyenne", nature: "témoignages", annees: "2013-2022" },
+    ],
+    entretien: ["Huile à la norme exacte préconisée, vidanges rapprochées", "Remplacement de la courroie selon l'intervalle révisé par le constructeur", "Contrôler le niveau d'huile régulièrement"],
+    privilegier: "Exemplaires avec courroie récemment remplacée et factures d'entretien complètes.",
+    eviter: "Exemplaires sans historique, ou avec un voyant de pression d'huile ou de freinage déjà signalé.",
+  },
+  {
+    id: "bluehdi16", nom: "1.6 BlueHDi 100 / 120", code: "DV6", constructeur: "PSA",
+    carburant: "diesel", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 1.6, alimentation: "turbo",
+    distribution: "courroie", kmReference: 300000, connaissance: 82, coutEntretien: "modéré",
+    forces: ["Très sobre", "Famille de moteurs éprouvée"],
+    defauts: [
+      { titre: "Système AdBlue défaillant", detail: "Pompe, capteur ou réservoir AdBlue en panne, avec message « démarrage impossible dans X km ». Réparation de plusieurs centaines à plus de 1 000 €.", gravite: 2, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+      { titre: "Encrassement FAP / EGR en usage urbain", detail: "Typique des diesels utilisés sur trajets courts.", gravite: 1, recurrence: "occasionnelle", confiance: "moyenne", nature: "consensus" },
+    ],
+    entretien: ["Courroie de distribution selon carnet", "Rouler régulièrement sur route pour régénérer le FAP"],
+    privilegier: "Usage routier, historique complet.",
+    eviter: "Usage exclusivement urbain sur trajets courts.",
+  },
+  {
+    id: "bluehdi15", nom: "1.5 BlueHDi 100 / 130", code: "DV5", constructeur: "PSA",
+    carburant: "diesel", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 1.5, alimentation: "turbo",
+    distribution: "courroie + chaîne d'arbres à cames", kmReference: 280000, connaissance: 65, coutEntretien: "modéré",
+    forces: ["Très faible consommation", "Bon couple"],
+    defauts: [
+      { titre: "Allongement de la chaîne entre arbres à cames", detail: "Cas d'allongement prématuré signalés sur les premières années de production.", gravite: 3, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages", annees: "2017-2020" },
+      { titre: "Système AdBlue défaillant", detail: "Même problématique que les autres BlueHDi.", gravite: 2, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+    ],
+    entretien: ["Écouter les bruits de distribution à froid", "Vérifier les mises à jour et campagnes constructeur"],
+    privilegier: "Production à partir de 2020, historique complet.",
+    eviter: "Bruit métallique à froid, absence d'historique.",
+  },
+  {
+    id: "bluehdi20", nom: "2.0 BlueHDi 150 / 180", code: "DW10F", constructeur: "PSA",
+    carburant: "diesel", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "turbo",
+    distribution: "courroie", kmReference: 350000, connaissance: 72, coutEntretien: "modéré",
+    forces: ["Moteur robuste et coupleux", "Adapté aux gros rouleurs"],
+    defauts: [
+      { titre: "Système AdBlue défaillant", detail: "Pompe ou réservoir AdBlue, comme sur les autres BlueHDi.", gravite: 2, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+    ],
+    entretien: ["Courroie selon carnet", "Contrôle du circuit AdBlue"],
+    privilegier: "Gros rouleurs, usage autoroutier.",
+    eviter: "Usage urbain exclusif.",
+  },
+
+  // ───────────── Renault ─────────────
+  {
+    id: "tce09", nom: "0.9 TCe 90", code: "H4Bt", constructeur: "Renault",
+    carburant: "essence", cylindres: 3, architecture: "3 cylindres en ligne", cylindree: 0.9, alimentation: "turbo",
+    distribution: "chaîne", kmReference: 200000, connaissance: 55, coutEntretien: "faible",
+    forces: ["Sobre en ville", "Entretien peu coûteux"],
+    defauts: [
+      { titre: "Consommation d'huile signalée", detail: "Quelques cas rapportés, bien moins répandus que sur le 1.2 TCe H5Ft.", gravite: 2, recurrence: "occasionnelle", confiance: "faible", nature: "témoignages" },
+    ],
+    entretien: ["Contrôler le niveau d'huile entre deux vidanges"],
+    privilegier: "Usage majoritairement urbain et périurbain.",
+    eviter: "Exemplaires sans suivi d'entretien.",
+  },
+  {
+    id: "tce12h5ft", nom: "1.2 TCe 115 / 120 / 130", code: "H5Ft", constructeur: "Renault",
+    carburant: "essence", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 1.2, alimentation: "turbo",
+    distribution: "chaîne", kmReference: 180000, connaissance: 85, coutEntretien: "modéré",
+    forces: ["Agréable et performant pour sa cylindrée"],
+    defauts: [
+      { titre: "Surconsommation d'huile pouvant mener à la casse", detail: "Défaut documenté de segmentation : consommation d'huile importante, dégradation de la chaîne, casse moteur possible.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2012-2016" },
+      { titre: "Saut de chaîne de distribution", detail: "Conséquence fréquente du manque d'huile.", gravite: 3, recurrence: "fréquente", confiance: "moyenne", nature: "témoignages", annees: "2012-2016" },
+    ],
+    entretien: ["Contrôle du niveau d'huile tous les 1 000 km", "Vérifier les reprogrammations et prises en charge déjà faites"],
+    privilegier: "Exemplaires ayant fait l'objet d'une intervention constructeur documentée.",
+    eviter: "Exemplaires 2012-2016 sans historique ni test de consommation d'huile.",
+  },
+  {
+    id: "tce13", nom: "1.3 TCe 115 / 140 / 160", code: "H5Ht", constructeur: "Renault / Nissan / Mercedes",
+    carburant: "essence", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 1.3, alimentation: "turbo",
+    distribution: "chaîne", kmReference: 230000, connaissance: 58, coutEntretien: "modéré",
+    forces: ["Bon compromis performances / consommation", "Moteur partagé par plusieurs constructeurs"],
+    defauts: [
+      { titre: "À-coups et défauts de démarrage sur premières séries", detail: "Corrigés le plus souvent par mise à jour logicielle.", gravite: 1, recurrence: "occasionnelle", confiance: "faible", nature: "témoignages", annees: "2018-2019" },
+    ],
+    entretien: ["Vidanges régulières (injection directe)"],
+    privilegier: "Production 2019 et après.",
+    eviter: "—",
+  },
+  {
+    id: "dci15", nom: "1.5 dCi 75 / 90 / 110 / Blue dCi 115", code: "K9K", constructeur: "Renault",
+    carburant: "diesel", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 1.5, alimentation: "turbo",
+    distribution: "courroie", kmReference: 280000, connaissance: 90, coutEntretien: "faible",
+    forces: ["Très sobre", "Pièces peu chères et abondantes", "Fiabilité correcte sur les versions récentes"],
+    defauts: [
+      { titre: "Coussinets de bielle", detail: "Défaut surtout connu sur les générations anciennes ; nettement plus rare sur les versions Euro 5/6.", gravite: 3, recurrence: "occasionnelle", confiance: "moyenne", nature: "consensus", annees: "2001-2008 surtout" },
+      { titre: "Volant moteur bimasse", detail: "Usure fréquente, vibrations et claquements.", gravite: 2, recurrence: "fréquente", confiance: "moyenne", nature: "témoignages" },
+      { titre: "Encrassement EGR / FAP", detail: "Usage urbain à éviter.", gravite: 1, recurrence: "fréquente", confiance: "moyenne", nature: "consensus" },
+    ],
+    entretien: ["Vidanges rapprochées (15 000 km max conseillé)", "Courroie selon carnet"],
+    privilegier: "Versions 2012 et après, vidanges régulières.",
+    eviter: "Vidanges espacées, bruit métallique au ralenti.",
+  },
+
+  // ───────────── Volkswagen ─────────────
+  {
+    id: "ea111_14tsi", nom: "1.4 TSI 122 / 160", code: "EA111", constructeur: "Volkswagen",
+    carburant: "essence", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 1.4, alimentation: "turbo (+ compresseur sur 160 ch)",
+    distribution: "chaîne", kmReference: 200000, connaissance: 85, coutEntretien: "modéré",
+    forces: ["Vif et agréable"],
+    defauts: [
+      { titre: "Allongement de la chaîne de distribution", detail: "Tendeur et chaîne fragiles, bruit de claquement au démarrage, risque de saut de chaîne.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2007-2012" },
+      { titre: "Pistons et consommation d'huile (versions 160 ch)", detail: "Problèmes de pistons fissurés et consommation d'huile signalés.", gravite: 3, recurrence: "fréquente", confiance: "moyenne", nature: "témoignages", annees: "2007-2012" },
+    ],
+    entretien: ["Vérifier si la distribution a été remplacée (factures)"],
+    privilegier: "Distribution remplacée avec facture.",
+    eviter: "Claquement au démarrage à froid.",
+  },
+  {
+    id: "ea211_14tsi", nom: "1.4 TSI 122 / 125 / 140 ACT / 150", code: "EA211", constructeur: "Volkswagen",
+    carburant: "essence", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 1.4, alimentation: "turbo",
+    distribution: "courroie", kmReference: 250000, connaissance: 80, coutEntretien: "modéré",
+    forces: ["Nette amélioration par rapport à l'EA111", "Souple et sobre"],
+    defauts: [
+      { titre: "Fuite du boîtier pompe à eau / thermostat", detail: "Boîtier en plastique sujet aux fuites de liquide de refroidissement.", gravite: 1, recurrence: "fréquente", confiance: "moyenne", nature: "consensus" },
+    ],
+    entretien: ["Contrôler l'état de la courroie selon préconisations", "Vérifier l'absence de fuite de liquide de refroidissement"],
+    privilegier: "Toutes années, avec entretien suivi.",
+    eviter: "Traces de liquide de refroidissement sous le moteur.",
+  },
+  {
+    id: "ea211_10tsi", nom: "1.0 TSI 95 / 110 / 115", code: "EA211", constructeur: "Volkswagen",
+    carburant: "essence", cylindres: 3, architecture: "3 cylindres en ligne", cylindree: 1.0, alimentation: "turbo",
+    distribution: "courroie", kmReference: 220000, connaissance: 65, coutEntretien: "faible",
+    forces: ["Sobre", "Entretien économique"],
+    defauts: [
+      { titre: "Vibrations et légers défauts d'agrément", detail: "Caractère trois cylindres ; quelques retours de ratés à froid.", gravite: 1, recurrence: "occasionnelle", confiance: "faible", nature: "témoignages" },
+    ],
+    entretien: ["Entretien standard selon carnet"],
+    privilegier: "Usage mixte.",
+    eviter: "—",
+  },
+  {
+    id: "ea189_20tdi", nom: "2.0 TDI 110 / 140 / 170 (Common Rail)", code: "EA189", constructeur: "Volkswagen",
+    carburant: "diesel", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "turbo",
+    distribution: "courroie", kmReference: 300000, connaissance: 90, coutEntretien: "modéré",
+    forces: ["Endurant", "Bon couple"],
+    defauts: [
+      { titre: "Affaire Dieselgate : rappel logiciel antipollution", detail: "Moteur concerné par le logiciel de fraude aux émissions ; rappel avec mise à jour. Vérifier que l'intervention a été réalisée.", gravite: 2, recurrence: "confirmée", confiance: "élevée", nature: "rappel", annees: "2008-2015" },
+      { titre: "EGR et injecteurs après mise à jour", detail: "Retours de problèmes d'EGR ou d'injecteurs après la mise à jour du rappel.", gravite: 2, recurrence: "occasionnelle", confiance: "faible", nature: "témoignages" },
+      { titre: "Volant moteur bimasse", detail: "Usure classique.", gravite: 2, recurrence: "fréquente", confiance: "moyenne", nature: "consensus" },
+    ],
+    entretien: ["Vérifier la réalisation du rappel antipollution", "Courroie selon carnet"],
+    privilegier: "Rappel effectué, historique complet.",
+    eviter: "Rappel non effectué (problème au contrôle et à la revente).",
+  },
+  {
+    id: "ea288_20tdi", nom: "2.0 TDI 150 / 184", code: "EA288", constructeur: "Volkswagen",
+    carburant: "diesel", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "turbo",
+    distribution: "courroie", kmReference: 320000, connaissance: 75, coutEntretien: "modéré",
+    forces: ["Robuste et sobre", "Idéal pour les gros rouleurs"],
+    defauts: [
+      { titre: "Fuites du circuit de refroidissement", detail: "Pompe à eau ou durites à surveiller.", gravite: 1, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages" },
+      { titre: "Encrassement EGR / FAP en usage urbain", detail: "Typique des diesels modernes.", gravite: 1, recurrence: "occasionnelle", confiance: "moyenne", nature: "consensus" },
+    ],
+    entretien: ["Courroie selon carnet", "Rouler régulièrement sur route"],
+    privilegier: "Gros rouleurs, usage routier.",
+    eviter: "Usage urbain exclusif.",
+  },
+  {
+    id: "ea888g3_20tsi", nom: "2.0 TSI 220 à 245 (GTI)", code: "EA888 génération 3", constructeur: "Volkswagen",
+    carburant: "essence", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "turbo",
+    distribution: "chaîne", kmReference: 250000, connaissance: 85, coutEntretien: "modéré",
+    forces: ["Performant et robuste", "Bien meilleure réputation que la génération 2 (consommation d'huile)"],
+    defauts: [
+      { titre: "Fuite du boîtier pompe à eau / thermostat", detail: "Boîtier en plastique, fuite de liquide de refroidissement fréquente.", gravite: 2, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+    ],
+    entretien: ["Vidanges régulières, surtout en usage sportif", "Contrôler l'absence de fuite de liquide de refroidissement"],
+    privilegier: "Exemplaires non modifiés (pas de reprogrammation).",
+    eviter: "Moteurs reprogrammés sans justificatifs.",
+  },
+
+  // ───────────── BMW ─────────────
+  {
+    id: "bmw_n47", nom: "2.0d 143 à 184 (320d)", code: "N47", constructeur: "BMW",
+    carburant: "diesel", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "turbo",
+    distribution: "chaîne (côté boîte)", kmReference: 250000, connaissance: 90, coutEntretien: "élevé",
+    forces: ["Performant et sobre"],
+    defauts: [
+      { titre: "Casse de la chaîne de distribution", detail: "Chaîne et guides placés côté boîte : usure, bruit de sifflement puis casse possible. Remplacement coûteux car moteur à déposer.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2007-2014" },
+      { titre: "Rappel refroidisseur EGR", detail: "Rappel BMW (2018) : fuite possible du refroidisseur EGR avec risque d'incendie. Vérifier que l'intervention a été réalisée.", gravite: 2, recurrence: "confirmée", confiance: "élevée", nature: "rappel" },
+    ],
+    entretien: ["Écouter tout sifflement à l'arrière du moteur", "Vidanges rapprochées"],
+    privilegier: "Chaîne remplacée avec facture.",
+    eviter: "Bruit de sifflement ou de cliquetis côté boîte.",
+  },
+  {
+    id: "bmw_b47", nom: "2.0d 150 à 190 (320d)", code: "B47", constructeur: "BMW",
+    carburant: "diesel", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "turbo",
+    distribution: "chaîne", kmReference: 320000, connaissance: 75, coutEntretien: "élevé",
+    forces: ["Nette amélioration par rapport au N47", "Sobre et performant"],
+    defauts: [
+      { titre: "Rappel refroidisseur EGR", detail: "Certains exemplaires concernés par le rappel EGR de 2018.", gravite: 2, recurrence: "occasionnelle", confiance: "élevée", nature: "rappel" },
+    ],
+    entretien: ["Vérifier les rappels effectués", "Vidanges régulières"],
+    privilegier: "Toutes années, avec historique.",
+    eviter: "—",
+  },
+  {
+    id: "bmw_n20", nom: "2.0i 184 à 245 (320i / 328i)", code: "N20", constructeur: "BMW",
+    carburant: "essence", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "turbo",
+    distribution: "chaîne", kmReference: 220000, connaissance: 80, coutEntretien: "élevé",
+    forces: ["Performant"],
+    defauts: [
+      { titre: "Usure des guides de chaîne de distribution", detail: "Guides en plastique qui se dégradent, risque de casse moteur.", gravite: 3, recurrence: "fréquente", confiance: "élevée", nature: "consensus", annees: "2011-2015" },
+    ],
+    entretien: ["Écouter tout bruit de distribution", "Vidanges rapprochées"],
+    privilegier: "Distribution refaite avec facture.",
+    eviter: "Bruit de cliquetis au démarrage.",
+  },
+  {
+    id: "bmw_b48", nom: "2.0i 184 à 252 (320i / 330i)", code: "B48", constructeur: "BMW",
+    carburant: "essence", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "turbo",
+    distribution: "chaîne", kmReference: 280000, connaissance: 70, coutEntretien: "élevé",
+    forces: ["Bonne réputation de fiabilité", "Performant et sobre"],
+    defauts: [
+      { titre: "Fuites mineures (couvre-culasse, refroidissement)", detail: "Rapportées à kilométrage élevé.", gravite: 1, recurrence: "occasionnelle", confiance: "faible", nature: "témoignages" },
+    ],
+    entretien: ["Entretien standard selon carnet"],
+    privilegier: "Toutes années.",
+    eviter: "—",
+  },
+  {
+    id: "bmw_n55", nom: "3.0i 306 (335i)", code: "N55", constructeur: "BMW",
+    carburant: "essence", cylindres: 6, architecture: "6 cylindres en ligne", cylindree: 3.0, alimentation: "turbo",
+    distribution: "chaîne", kmReference: 260000, connaissance: 85, coutEntretien: "élevé",
+    forces: ["6 cylindres en ligne souple et performant", "Mécanique globalement solide"],
+    defauts: [
+      { titre: "Pompe à eau électrique défaillante", detail: "Panne fréquente, surchauffe possible.", gravite: 2, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+      { titre: "Fuites d'huile (couvre-culasse, support de filtre)", detail: "Joints à remplacer, risque de projection sur l'échappement.", gravite: 1, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+    ],
+    entretien: ["Prévoir le remplacement de la pompe à eau", "Vidanges rapprochées"],
+    privilegier: "Pompe à eau et joints déjà remplacés.",
+    eviter: "Odeur d'huile brûlée, traces d'huile.",
+  },
+  {
+    id: "bmw_b58", nom: "3.0i 326 à 374 (340i / M340i)", code: "B58", constructeur: "BMW",
+    carburant: "essence", cylindres: 6, architecture: "6 cylindres en ligne", cylindree: 3.0, alimentation: "turbo",
+    distribution: "chaîne", kmReference: 300000, connaissance: 75, coutEntretien: "élevé",
+    forces: ["Excellente réputation de fiabilité", "Performances et agrément de premier plan"],
+    defauts: [
+      { titre: "Fuite du vase d'expansion / boîtier de refroidissement", detail: "Pièces plastiques du circuit de refroidissement.", gravite: 1, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages" },
+    ],
+    entretien: ["Entretien standard selon carnet, vidanges rapprochées en usage sportif"],
+    privilegier: "Exemplaires non reprogrammés.",
+    eviter: "—",
+  },
+  {
+    id: "bmw_n63", nom: "4.4 V8 biturbo 407 à 449 (550i)", code: "N63 / N63TU", constructeur: "BMW",
+    carburant: "essence", cylindres: 8, architecture: "V8", cylindree: 4.4, alimentation: "biturbo",
+    distribution: "chaîne", kmReference: 180000, connaissance: 85, coutEntretien: "très élevé",
+    forces: ["Performances très élevées", "Forte décote : prix d'achat bas"],
+    defauts: [
+      { titre: "Consommation d'huile (joints de queues de soupapes)", detail: "Défaut largement documenté, réparation lourde.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2008-2013 surtout" },
+      { titre: "Chaîne de distribution", detail: "Allongement nécessitant une intervention lourde.", gravite: 3, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+      { titre: "Injecteurs, bobines, turbos", detail: "Chaleur importante dans le V du moteur : durites, turbos et injecteurs sollicités. BMW a mené une campagne de maintenance (« Customer Care Package »).", gravite: 2, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+    ],
+    entretien: ["Vérifier la réalisation des campagnes BMW", "Vidanges très rapprochées", "Budget d'entretien très élevé à prévoir"],
+    privilegier: "N63TU (2013 et après) avec historique BMW complet, idéalement garantie.",
+    eviter: "N63 d'avant 2013 sans historique : risque financier majeur.",
+  },
+
+  // ───────────── Toyota / Lexus ─────────────
+  {
+    id: "toyota_1nzfxe", nom: "1.5 Hybride 100", code: "1NZ-FXE", constructeur: "Toyota",
+    carburant: "hybride", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 1.5, alimentation: "atmosphérique",
+    distribution: "chaîne", kmReference: 350000, connaissance: 85, coutEntretien: "faible",
+    forces: ["Réputation de très grande fiabilité", "Très sobre en ville", "Pas d'embrayage, pas de turbo"],
+    defauts: [
+      { titre: "Pompe à eau à kilométrage élevé", detail: "Fuite possible au-delà de 150 000 km.", gravite: 1, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages" },
+      { titre: "Vieillissement de la batterie hybride", detail: "Rare mais coûteux ; Toyota prolonge la garantie de la batterie sous condition d'entretien dans le réseau.", gravite: 2, recurrence: "isolée", confiance: "moyenne", nature: "consensus" },
+    ],
+    entretien: ["Contrôle annuel du système hybride", "Nettoyage du filtre de ventilation de la batterie"],
+    privilegier: "Entretien dans le réseau (extension de garantie de la batterie).",
+    eviter: "—",
+  },
+  {
+    id: "toyota_2zrfxe", nom: "1.8 Hybride 122 / 140", code: "2ZR-FXE", constructeur: "Toyota",
+    carburant: "hybride", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 1.8, alimentation: "atmosphérique",
+    distribution: "chaîne", kmReference: 350000, connaissance: 85, coutEntretien: "faible",
+    forces: ["Fiabilité de référence", "Très bonne longévité, plébiscitée par les taxis"],
+    defauts: [
+      { titre: "Encrassement EGR", detail: "Signalé sur certaines générations à kilométrage élevé.", gravite: 1, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages" },
+    ],
+    entretien: ["Contrôle annuel du système hybride"],
+    privilegier: "Toutes années.",
+    eviter: "—",
+  },
+  {
+    id: "toyota_m20a", nom: "2.0 Hybride 184 / 196", code: "M20A-FXS", constructeur: "Toyota",
+    carburant: "hybride", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "atmosphérique",
+    distribution: "chaîne", kmReference: 350000, connaissance: 55, coutEntretien: "faible",
+    forces: ["Performances vives pour un hybride", "Technologie hybride Toyota éprouvée"],
+    defauts: [],
+    entretien: ["Contrôle annuel du système hybride"],
+    privilegier: "Toutes années.",
+    eviter: "—",
+  },
+  {
+    id: "lexus_2urgse", nom: "5.0 V8 423 (IS F)", code: "2UR-GSE", constructeur: "Lexus",
+    carburant: "essence", cylindres: 8, architecture: "V8", cylindree: 5.0, alimentation: "atmosphérique",
+    distribution: "chaîne", kmReference: 350000, connaissance: 60, coutEntretien: "élevé",
+    forces: ["V8 atmosphérique réputé très robuste", "Sonorité et caractère", "Rareté"],
+    defauts: [
+      { titre: "Pompe à eau", detail: "Fuite possible à kilométrage élevé.", gravite: 1, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages" },
+    ],
+    entretien: ["Vidanges régulières", "Pièces Lexus coûteuses mais rarement nécessaires"],
+    privilegier: "Exemplaires d'origine avec historique.",
+    eviter: "Modifications importantes non documentées.",
+  },
+  {
+    id: "lexus_1urfse", nom: "4.6 V8 380 / 385 (LS 460)", code: "1UR-FSE", constructeur: "Lexus",
+    carburant: "essence", cylindres: 8, architecture: "V8", cylindree: 4.6, alimentation: "atmosphérique",
+    distribution: "chaîne", kmReference: 400000, connaissance: 70, coutEntretien: "élevé",
+    forces: ["Grande longévité", "Douceur exceptionnelle", "Décote forte : beaucoup de voiture pour le prix"],
+    defauts: [
+      { titre: "Rappel : ressorts de soupapes", detail: "Rappel Toyota/Lexus (2010) pour des ressorts de soupapes susceptibles de casser sur les premières productions. Vérifier que l'intervention a été réalisée.", gravite: 3, recurrence: "occasionnelle", confiance: "élevée", nature: "rappel", annees: "2006-2008" },
+      { titre: "Pompe à eau", detail: "Fuite possible à kilométrage élevé.", gravite: 1, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages" },
+    ],
+    entretien: ["Vérifier la réalisation des rappels", "Suspension pneumatique (selon version) à contrôler"],
+    privilegier: "Exemplaires suivis dans le réseau Lexus.",
+    eviter: "Exemplaires 2006-2008 sans preuve du rappel.",
+  },
+
+  // ───────────── Mercedes / Audi / Ford / Mazda ─────────────
+  {
+    id: "mb_m273", nom: "5.5 V8 388 (E500 / S500)", code: "M273", constructeur: "Mercedes-Benz",
+    carburant: "essence", cylindres: 8, architecture: "V8", cylindree: 5.5, alimentation: "atmosphérique",
+    distribution: "chaîne", kmReference: 300000, connaissance: 70, coutEntretien: "élevé",
+    forces: ["V8 atmosphérique coupleux", "Globalement robuste"],
+    defauts: [
+      { titre: "Usure prématurée des pignons de distribution", detail: "Pignons en alliage trop tendre sur les premiers moteurs, réparation lourde.", gravite: 3, recurrence: "occasionnelle", confiance: "moyenne", nature: "consensus", annees: "2006-2008" },
+      { titre: "Mécanisme des volets d'admission", detail: "Défaillance du mécanisme des volets du collecteur d'admission.", gravite: 1, recurrence: "fréquente", confiance: "moyenne", nature: "témoignages" },
+    ],
+    entretien: ["Vérifier le numéro de série moteur (plage concernée par les pignons)", "Vidanges régulières"],
+    privilegier: "Moteurs produits après la correction des pignons.",
+    eviter: "Code défaut de calage d'arbres à cames.",
+  },
+  {
+    id: "audi_42fsi", nom: "4.2 V8 FSI 354 (S5)", code: "4.2 FSI", constructeur: "Audi",
+    carburant: "essence", cylindres: 8, architecture: "V8", cylindree: 4.2, alimentation: "atmosphérique",
+    distribution: "chaîne (côté boîte)", kmReference: 250000, connaissance: 70, coutEntretien: "très élevé",
+    forces: ["V8 atmosphérique très plaisant", "Sonorité"],
+    defauts: [
+      { titre: "Calamine sur les soupapes d'admission", detail: "Typique de l'injection directe : perte de puissance, ratés. Nettoyage nécessaire.", gravite: 2, recurrence: "confirmée", confiance: "élevée", nature: "consensus" },
+      { titre: "Tendeurs et guides de chaîne de distribution", detail: "Distribution côté boîte : intervention moteur déposé, très coûteuse.", gravite: 3, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages" },
+      { titre: "Consommation d'huile", detail: "Signalée sur certains exemplaires.", gravite: 2, recurrence: "occasionnelle", confiance: "faible", nature: "témoignages" },
+    ],
+    entretien: ["Nettoyage des soupapes d'admission vers 80 000 à 100 000 km", "Budget d'entretien élevé"],
+    privilegier: "Distribution vérifiée, historique complet.",
+    eviter: "Bruit de cliquetis à froid, ratés à l'accélération.",
+  },
+  {
+    id: "ford_coyote50", nom: "5.0 V8 421 / 450 (Mustang)", code: "Coyote", constructeur: "Ford",
+    carburant: "essence", cylindres: 8, architecture: "V8", cylindree: 5.0, alimentation: "atmosphérique",
+    distribution: "chaîne", kmReference: 300000, connaissance: 70, coutEntretien: "modéré",
+    forces: ["V8 atmosphérique robuste", "Pièces abondantes et peu chères pour un V8"],
+    defauts: [
+      { titre: "Cliquetis à froid (« tick »)", detail: "Bruit souvent bénin mais fréquemment signalé sur la génération 2.", gravite: 1, recurrence: "fréquente", confiance: "moyenne", nature: "témoignages", annees: "2015-2017" },
+      { titre: "Consommation d'huile", detail: "Signalée sur certains moteurs de génération 3.", gravite: 2, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages", annees: "2018+" },
+    ],
+    entretien: ["Contrôler le niveau d'huile régulièrement", "Vérifier l'historique (import, homologation)"],
+    privilegier: "Modèles européens d'origine, avec historique.",
+    eviter: "Imports US accidentés ou sans historique.",
+  },
+  {
+    id: "mazda_skyg20", nom: "2.0 Skyactiv-G 120 / 165", code: "Skyactiv-G 2.0", constructeur: "Mazda",
+    carburant: "essence", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.0, alimentation: "atmosphérique",
+    distribution: "chaîne", kmReference: 300000, connaissance: 75, coutEntretien: "faible",
+    forces: ["Atmosphérique simple et fiable", "Entretien économique"],
+    defauts: [],
+    entretien: ["Entretien standard selon carnet"],
+    privilegier: "Toutes années.",
+    eviter: "—",
+  },
+  {
+    id: "mazda_skyd22", nom: "2.2 Skyactiv-D 150 / 175", code: "Skyactiv-D 2.2", constructeur: "Mazda",
+    carburant: "diesel", cylindres: 4, architecture: "4 cylindres en ligne", cylindree: 2.2, alimentation: "biturbo",
+    distribution: "chaîne", kmReference: 250000, connaissance: 75, coutEntretien: "modéré",
+    forces: ["Performant et sobre"],
+    defauts: [
+      { titre: "Dilution de l'huile (niveau qui monte)", detail: "Les régénérations du FAP diluent l'huile avec du gazole, surtout sur trajets courts.", gravite: 2, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+      { titre: "Encrassement de l'admission (calamine)", detail: "Perte de puissance, nettoyage nécessaire.", gravite: 2, recurrence: "fréquente", confiance: "élevée", nature: "consensus" },
+      { titre: "Injecteurs", detail: "Défaillances signalées.", gravite: 2, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages" },
+    ],
+    entretien: ["Contrôler le niveau d'huile (il ne doit pas monter)", "Usage routier indispensable"],
+    privilegier: "Gros rouleurs sur autoroute.",
+    eviter: "Usage urbain, niveau d'huile au-dessus du maximum.",
+  },
+];
