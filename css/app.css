@@ -318,3 +318,10 @@ table.comparatif thead td { font-weight: 750; font-size: 14px; }
 .apparition { animation: apparition .28s ease both; }
 @keyframes apparition { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .apparition { animation: none; } }
+
+/* ───────── Import d'annonce ───────── */
+.zone-import { display: grid; gap: 12px; border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--border)); transition: border-color .2s, background .2s; }
+.zone-import.survol { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.zone-import textarea { min-height: 96px; }
+.zone-import .lien-ligne > svg, .zone-import h3 { margin-bottom: 2px; }
+.rempli { border-color: var(--bon) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--bon) 22%, transparent); transition: box-shadow .3s; }

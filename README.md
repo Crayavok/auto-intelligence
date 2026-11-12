@@ -9,7 +9,8 @@ Assistant intelligent d'achat de voitures d'occasion : recherche, fiabilité par
 2. Toucher **Partager**, puis **Sur l'écran d'accueil**.
 3. L'application s'ouvre ensuite en plein écran, comme une application classique.
 
-## Version 0.1 : ce qui fonctionne
+## Version 0.2 : ce qui fonctionne
+- **Import d'annonce** : collez (ou glissez-déposez) le texte d'une annonce Leboncoin, La Centrale, AutoScout24 ou mobile.de. Prix, kilométrage, année, modèle, motorisation, boîte, vendeur, historique et contrôle technique sont reconnus (texte français ou allemand) et l'analyse se lance automatiquement.
 - **Recherche en description libre** (mode C) : la phrase est transformée en critères (budget, carburant, cylindres, boîte, carrosserie, marque, fiabilité, puissance), avec des alternatives « auxquelles vous n'auriez pas pensé ».
 - **Recherche par critères** (mode A) et **par marque et modèle** (mode B).
 - **Fiches** génération, motorisation (expertise moteur) et boîte de vitesses : défauts connus avec gravité, récurrence, niveau de confiance et nature de l'information.
@@ -31,6 +32,7 @@ js/app.js              Écrans et navigation
 js/notation.js         Moteur de notation déterministe et alertes
 js/recherche.js        Interprétation des demandes et filtrage
 js/stockage.js         Favoris et analyses (stockés sur l'appareil)
+js/import.js           Lecture du texte d'une annonce copiée ou glissée
 js/data/moteurs.js     Base de connaissances : motorisations
 js/data/boites.js      Base de connaissances : boîtes de vitesses
 js/data/modeles.js     Base de connaissances : marques, modèles, générations

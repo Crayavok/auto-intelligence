@@ -8,6 +8,7 @@ import {
 } from "./notation.js";
 import { interpreter, rechercher, ecarts, pourquoi, TRIS, MARQUES, CARROSSERIES } from "./recherche.js";
 import { stock } from "./stockage.js";
+import { extraireAnnonce } from "./import.js";
 
 // ─────────────────────────── Utilitaires ───────────────────────────
 const $ = (s, el = document) => el.querySelector(s);
@@ -33,6 +34,8 @@ const I = {
   alerte: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>`,
   source: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 6 .5l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 10a4 4 0 0 0-6-.5l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/></svg>`,
   fleche: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
+  importer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;flex:none;color:var(--accent-2);margin-top:2px"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>`,
+  coller: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></svg>`,
   voiture: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16h14v-3l-2-5H7l-2 5z"/><circle cx="8" cy="16.5" r="1.5"/><circle cx="16" cy="16.5" r="1.5"/></svg>`,
 };
 
@@ -148,6 +151,7 @@ function ecranAccueil() {
       <textarea name="q" rows="3" placeholder="Ex. : un V8 aussi fiable que possible, budget 25 000 €, toutes marques"></textarea>
       <button class="btn btn-principal" type="submit">${I.recherche} Chercher</button>
     </form>
+    <a class="lien-ligne mt" href="#/analyse">${I.importer}<div class="grow"><b>Importer une annonce</b><div class="petit muted">Collez le texte d'une annonce pour l'analyser en un instant</div></div><span class="chev">›</span></a>
     <div class="puces mt">
       ${["Citadine hybride fiable", "V8 fiable moins de 25 000 €", "Break diesel gros rouleur", "Sportive fiable 30 000 €"].map((s) => `<a class="puce" href="#/recherche?q=${encodeURIComponent(s)}">${esc(s)}</a>`).join("")}
     </div>
@@ -451,7 +455,18 @@ function ecranAnalyse(q) {
   const seg = (nom, opts, val) => `<div class="segment" data-seg="${nom}">${opts.map(([v, l]) => `<button type="button" data-val="${v}" class="${v === val ? "on" : ""}">${l}</button>`).join("")}</div><input type="hidden" name="${nom}" value="${esc(val)}">`;
 
   return `<h1>Analyser une annonce</h1>
-    <p class="sous-titre">Renseignez les informations de l'annonce : l'application calcule les notes, détecte les risques et les incohérences.</p>
+    <p class="sous-titre">Importez une annonce ou renseignez ses informations : l'application calcule les notes, détecte les risques et les incohérences.</p>
+    <div class="carte zone-import" id="zone-import">
+      <div class="flex" style="align-items:flex-start">${I.importer}<div><h3>Importer une annonce</h3>
+        <div class="petit muted">Sur l'annonce (Leboncoin, La Centrale, AutoScout24, mobile.de…), sélectionnez tout le texte et copiez-le, puis collez-le ici. Sur iPad ou ordinateur, vous pouvez aussi le glisser-déposer.</div></div></div>
+      <textarea id="texte-annonce" rows="4" placeholder="Collez ou glissez ici le texte de l'annonce…"></textarea>
+      <div class="rangee-btns">
+        <button type="button" class="btn" id="btn-coller">${I.coller} Coller</button>
+        <button type="button" class="btn btn-principal" id="btn-extraire" style="flex:1">Remplir l'analyse</button>
+      </div>
+      <div id="retour-import"></div>
+    </div>
+    <div class="flex mt-l" style="margin-bottom:12px"><div class="sep" style="flex:1;margin:0"></div><span class="petit muted">ou saisie manuelle</span><div class="sep" style="flex:1;margin:0"></div></div>
     <form id="form-analyse" class="grille">
       <div class="carte grille">
         <div class="champ"><label>Lien de l'annonce (facultatif)</label><input type="url" name="lien" value="${esc(s.lien)}" placeholder="https://www.leboncoin.fr/…">
@@ -572,10 +587,10 @@ function ecranFavoris() {
 // ── Sources
 function ecranSources() {
   const sources = [
-    ["Leboncoin", "off", "Collecte automatique interdite par les conditions d'utilisation. Analyse par saisie manuelle disponible."],
-    ["La Centrale", "off", "Pas d'API publique. Partenariat à étudier."],
-    ["AutoScout24 (FR, BE, DE, AT)", "off", "API réservée aux professionnels. Demande d'accès à faire."],
-    ["mobile.de (DE)", "off", "API réservée aux professionnels. Demande d'accès à faire."],
+    ["Leboncoin", "off", "Collecte automatique interdite par les conditions d'utilisation. Import par copier-coller du texte de l'annonce disponible."],
+    ["La Centrale", "off", "Pas d'API publique. Import par copier-coller disponible."],
+    ["AutoScout24 (FR, BE, DE, AT)", "off", "API réservée aux professionnels. Import par copier-coller disponible."],
+    ["mobile.de (DE)", "off", "API réservée aux professionnels. Import par copier-coller disponible (texte allemand reconnu)."],
     ["Willhaben (AT) / 2ememain (BE)", "off", "À étudier."],
     ["HistoVec", "part", "Gratuit, mais le rapport doit être fourni par le vendeur. L'application vous le rappelle."],
     ["RappelConso (rappels officiels)", "part", "Rappels majeurs intégrés manuellement dans la base ; connexion automatique à venir."],
@@ -593,7 +608,7 @@ function ecranSources() {
       <p><b>Prix</b> : calculé uniquement si vous renseignez une valeur de marché. Jamais inventé.</p>
       <p style="margin-bottom:0"><b>Note globale</b> : moyenne pondérée selon vos priorités, ramenée aux notes disponibles, avec un niveau de confiance.</p>
     </div>
-    <p class="tres-petit muted mt-l">AUTO INTELLIGENCE · version 0.1 · Les informations fournies sont indicatives et ne remplacent pas l'inspection d'un professionnel.</p>`;
+    <p class="tres-petit muted mt-l">AUTO INTELLIGENCE · version 0.2 · Les informations fournies sont indicatives et ne remplacent pas l'inspection d'un professionnel.</p>`;
 }
 
 function introuvable() {
@@ -740,6 +755,85 @@ function brancherAnalyse(q) {
   };
   form.addEventListener("submit", (e) => { e.preventDefault(); lancer(true); });
   if (enregistree) lancer(false);
+  brancherImport(form, { remplirMoteurs, remplirBoites, lancer });
+}
+
+// ── Import d'annonce (coller / glisser-déposer)
+function brancherImport(form, { remplirMoteurs, remplirBoites, lancer }) {
+  const zone = $("#zone-import"), zoneTexte = $("#texte-annonce"), retour = $("#retour-import");
+
+  const choisirSegment = (nom, val) => {
+    const s = $(`[data-seg="${nom}"]`, form);
+    $$("button", s).forEach((b) => b.classList.toggle("on", b.dataset.val === val));
+    form[nom].value = val;
+  };
+  const marquer = (el) => { el.classList.add("rempli"); setTimeout(() => el.classList.remove("rempli"), 2500); };
+
+  const extraire = () => {
+    const texte = zoneTexte.value.trim();
+    if (texte.length < 10) { toast("Collez d'abord le texte d'une annonce"); return; }
+    const { champs, reconnus, aVerifier, marqueHorsBase } = extraireAnnonce(texte);
+
+    if (champs.modeleId) {
+      form.modeleId.value = champs.modeleId; marquer(form.modeleId);
+      remplirMoteurs(champs.moteurId); marquer(form.moteurId);
+      remplirBoites(champs.boiteId); marquer(form.boiteId);
+    }
+    for (const k of ["lien", "annee", "km", "prix", "proprietaires"]) {
+      if (champs[k] != null) { form[k].value = champs[k]; marquer(form[k]); }
+    }
+    for (const k of ["historique", "ct", "vendeur"]) if (champs[k]) choisirSegment(k, champs[k]);
+
+    retour.innerHTML = `<div class="sep"></div>
+      ${reconnus.length ? `<div class="etiquette">Informations trouvées</div><div class="puces mt">${reconnus.map(([l, v]) => `<span class="puce statique on"><span class="muted">${esc(l)} :</span> ${esc(v)}</span>`).join("")}</div>` : ""}
+      ${marqueHorsBase ? `<div class="alerte vigilance mt">${I.alerte}<div><div class="t">${esc(marqueHorsBase)} n'est pas encore dans la base</div><div class="x">La marque est reconnue, mais ses modèles n'ont pas encore de fiche : l'analyse complète sera possible quand elle aura été ajoutée.</div></div></div>`
+        : aVerifier.length ? `<div class="alerte vigilance mt">${I.alerte}<div><div class="t">À vérifier ou compléter : ${esc(aVerifier.join(", "))}</div><div class="x">Corrigez ces champs dans le formulaire ci-dessous, puis touchez Analyser.</div></div></div>` : ""}
+      ${champs.historique || champs.ct ? `<p class="tres-petit muted">L'historique et le contrôle technique sont repris de ce qu'annonce le vendeur : demandez les justificatifs.</p>` : ""}`;
+
+    const complet = champs.modeleId && champs.annee && champs.km != null && champs.prix;
+    if (complet && !aVerifier.length) {
+      lancer(true);
+      toast("Annonce importée et analysée");
+    } else {
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      toast(reconnus.length ? "Annonce importée : vérifiez les champs" : "Aucune information reconnue");
+    }
+  };
+
+  $("#btn-extraire").addEventListener("click", extraire);
+  zoneTexte.addEventListener("paste", () => setTimeout(extraire, 50));
+  $("#btn-coller").addEventListener("click", async () => {
+    try {
+      const texte = await navigator.clipboard.readText();
+      if (!texte) throw new Error("vide");
+      zoneTexte.value = texte;
+      extraire();
+    } catch {
+      zoneTexte.focus();
+      toast("Touchez longuement la zone de texte, puis « Coller »");
+    }
+  });
+
+  // Glisser-déposer : texte, lien, page HTML ou fichier texte
+  ["dragenter", "dragover"].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("survol"); }));
+  ["dragleave", "drop"].forEach((ev) => zone.addEventListener(ev, () => zone.classList.remove("survol")));
+  zone.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    const dt = e.dataTransfer;
+    let texte = dt.getData("text/plain") || dt.getData("text/uri-list");
+    if (!texte && dt.getData("text/html")) {
+      texte = new DOMParser().parseFromString(dt.getData("text/html"), "text/html").body.innerText;
+    }
+    const fichier = dt.files?.[0];
+    if (!texte && fichier) {
+      if (fichier.type.startsWith("image/")) { toast("Les captures d'écran ne sont pas encore lues : copiez le texte de l'annonce"); return; }
+      texte = await fichier.text();
+      if (/html/.test(fichier.type) || /<html/i.test(texte)) texte = new DOMParser().parseFromString(texte, "text/html").body.innerText;
+    }
+    if (!texte) { toast("Contenu non reconnu"); return; }
+    zoneTexte.value = texte;
+    extraire();
+  });
 }
 
 function enregistrer() {
