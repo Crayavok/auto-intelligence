@@ -54,6 +54,50 @@ function malusMasse(masse, annee, carburant) {
   return { montant, note: `barème ${annee <= 2025 ? "2024-2025" : "2026"} : à partir de ${seuil} kg${abattement ? ", abattement hybride de 100 kg" : ""}` };
 }
 
+/**
+ * Impact du malus CO2 pour un véhicule importé : montant, explication et évolution selon la date d'immatriculation.
+ * p = { annee, mois, co2, carburant, malusOfficiel }
+ */
+export function impactMalusCO2(p) {
+  const maintenant = new Date();
+  const ageMois = Math.max(0, (maintenant.getFullYear() - p.annee) * 12 + (maintenant.getMonth() + 1 - (p.mois || 6)));
+  const base = { ageMois, seuil: 108, plafondCO2: 192, co2: p.co2 || null, anneeBareme: p.annee };
+  if (p.carburant === "électrique") return { ...base, statut: "exonere", montant: 0, raison: "Les voitures 100 % électriques ne paient pas de malus CO2." };
+  if (p.annee < 2015) return { ...base, statut: "exonere", montant: 0, raison: "Première immatriculation avant le 1er janvier 2015 : malus CO2 nul pour un véhicule importé." };
+  if (ageMois > 180) return { ...base, statut: "exonere", montant: 0, raison: "Plus de 15 ans (181 mois) : décote de 100 %, aucun malus." };
+  if (p.malusOfficiel != null && p.malusOfficiel >= 0 && p.malusOfficiel !== "") {
+    return { ...base, statut: "officiel", montant: p.malusOfficiel, raison: "Montant que vous avez relevé sur le simulateur officiel." };
+  }
+  if (!p.co2) return { ...base, statut: "inconnu", montant: null, raison: "Renseignez le CO2 (g/km) figurant sur l'annonce ou le certificat de conformité." };
+
+  const bareme = malusCO2Bareme2026(p.co2);
+  const decote = decoteImport(ageMois);
+  const montant = Math.round(bareme * (1 - decote));
+
+  // Évolution : prochains paliers de décote si l'immatriculation en France a lieu plus tard
+  const prochains = [];
+  for (const [max, pct] of DECOTE) {
+    if (max + 1 <= ageMois) continue;
+    const dans = max + 1 - ageMois;
+    if (dans <= 0 || prochains.length >= 3) continue;
+    const date = new Date(maintenant.getFullYear(), maintenant.getMonth() + dans, 1);
+    const d = decoteImport(max + 1);
+    prochains.push({ dans, date, decote: d, montant: Math.round(bareme * (1 - d)) });
+  }
+  // Courbe du malus (après décote) selon le CO2, pour situer le véhicule
+  const courbe = [];
+  for (let c = 100; c <= 200; c += 5) courbe.push({ co2: c, montant: Math.round(malusCO2Bareme2026(c) * (1 - decote)) });
+
+  return {
+    ...base, statut: p.annee >= 2026 ? "exact" : "majorant", montant, bareme, decote, prochains, courbe,
+    ecartSeuil: p.co2 - 108,
+    nedc: p.annee < 2021,
+    raison: p.annee >= 2026
+      ? "Barème 2026, celui de l'année de première immatriculation."
+      : `Calculé avec le barème 2026, le plus sévère. Le barème réellement appliqué est celui de ${p.annee}, aux seuils plus élevés : le montant réel est en principe inférieur.`,
+  };
+}
+
 export function chevauxFiscaux(co2, kw) {
   if (!co2 || !kw) return null;
   return Math.max(1, Math.round(co2 / 45 + Math.pow(kw / 40, 1.6)));
@@ -86,15 +130,10 @@ export function coutImport(p) {
   lignes.push({ libelle: "Quitus fiscal", montant: 0 });
 
   // Malus CO2
-  let malusCO2 = 0;
-  if (p.carburant === "électrique") notes.push("Électrique : pas de malus CO2.");
-  else if (p.annee < 2015) notes.push("Première immatriculation avant 2015 : malus CO2 nul.");
-  else if (!p.co2) notes.push("CO2 non renseigné : malus CO2 non calculé (valeur en g/km sur le certificat de conformité).");
-  else {
-    malusCO2 = Math.round(malusCO2Bareme2026(p.co2) * (1 - decote));
-    notes.push(`Malus CO2 : barème 2026 avec décote de ${Math.round(decote * 100)} % (âge ${Math.max(0, ageMois)} mois). Le barème réel est celui de ${p.annee}, généralement plus favorable : montant MAJORANT, à vérifier sur le simulateur officiel.${p.annee < 2021 ? " Pour une immatriculation avant 2021, la valeur de CO2 peut être en norme NEDC : vérifier sur le certificat de conformité." : ""}`);
-  }
-  lignes.push({ libelle: "Malus CO2", montant: malusCO2, estime: true });
+  const impact = impactMalusCO2(p);
+  const malusCO2 = impact.montant ?? 0;
+  notes.push(`Malus CO2 : ${impact.raison}`);
+  lignes.push({ libelle: `Malus CO2${impact.statut === "majorant" ? " (maximum)" : impact.statut === "officiel" ? " (officiel)" : ""}`, montant: malusCO2, estime: impact.statut !== "officiel" && impact.statut !== "exonere" });
 
   // Malus masse
   const mm = malusMasse(p.masse, p.annee, p.carburant);
@@ -113,7 +152,7 @@ export function coutImport(p) {
   lignes.push({ libelle: `Carte grise${cv ? ` (${cv} CV × ${tarif.toLocaleString("fr-FR")} €${ageAns > 10 ? " ÷ 2" : ""})` : ""}`, montant: carteGrise, estime: !p.cv });
 
   const total = lignes.reduce((s, l) => s + (l.montant || 0), 0);
-  return { lignes, total, notes, cv, decote, ageMois };
+  return { lignes, total, notes, cv, decote, ageMois, impact };
 }
 
 // ─────────────────────────── Coût total de possession ───────────────────────────

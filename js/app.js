@@ -526,6 +526,8 @@ function ecranAnalyse(q) {
           <div class="champ"><label>Plaques de transit (€)</label><input type="number" inputmode="numeric" name="imp_plaques" value="${esc(imp.plaques ?? "")}"></div>
           <div class="champ"><label>Certificat COC (€)</label><input type="number" inputmode="numeric" name="imp_coc" value="${esc(imp.coc ?? 150)}"></div>
           <div class="champ"><label>Contrôle technique (€)</label><input type="number" inputmode="numeric" name="imp_ct" value="${esc(imp.ct ?? 80)}"></div>
+          <div class="champ" style="grid-column:1/-1"><label>Malus CO2 officiel (€, si connu)</label><input type="number" inputmode="numeric" name="imp_malus" value="${esc(imp.malusOfficiel ?? "")}" placeholder="Montant du simulateur officiel">
+            <span class="tres-petit muted">Remplace l'estimation de l'application par le montant exact.</span></div>
         </div>
       </div>
       <div class="carte grille">
@@ -615,9 +617,36 @@ function blocHistoriquePrix(precedent, saisie) {
     <div class="x">${h.map((x) => `${new Date(x.date).toLocaleDateString("fr-FR")} : ${fmt(x.prix)} €${x.nouveau ? " (non enregistré)" : ""}`).join(" → ")}${ecart < 0 ? ". Un vendeur qui baisse son prix est souvent ouvert à la négociation." : ""}</div></div></div>`;
 }
 
+function blocMalus(m) {
+  const etiquette = { majorant: ["moyen", "Montant maximum"], exact: ["bon", "Barème de l'année"], officiel: ["bon", "Montant officiel"], exonere: ["bon", "Exonéré"], inconnu: ["", "CO2 à renseigner"] }[m.statut];
+  const entete = `<div class="flex entre wrap" style="gap:8px"><div><div class="etiquette">Impact du malus CO2</div>
+      <div class="num" style="font-size:30px;font-weight:800;letter-spacing:-.02em">${m.montant == null ? "—" : `${fmt(m.montant)} €`}</div></div>
+      <span class="badge ${etiquette[0]}">${etiquette[1]}</span></div>
+    <p class="petit" style="margin:6px 0 0">${esc(m.raison)}</p>`;
+  if (m.statut !== "majorant" && m.statut !== "exact") return `<div class="carte malus mt">${entete}</div>`;
+
+  // Échelle CO2 : 90 à 200 g/km, seuil 2026 à 108, plafond à 192
+  const x = (c) => ((Math.min(200, Math.max(90, c)) - 90) / 110) * 100;
+  const echelle = `<div class="echelle-co2" aria-label="Position du véhicule sur l'échelle CO2">
+      <div class="piste"><span class="zone-ok" style="width:${x(108)}%"></span><span class="zone-malus" style="left:${x(108)}%;width:${x(192) - x(108)}%"></span><span class="zone-max" style="left:${x(192)}%;right:0"></span>
+        <span class="repere" style="left:${x(m.co2)}%"><b>${m.co2} g</b></span></div>
+      <div class="graduations tres-petit muted"><span style="left:${x(108)}%">108<br>seuil</span><span style="left:${x(150)}%">150</span><span style="left:${x(192)}%">192<br>plafond</span></div>
+    </div>`;
+  const calcul = `<ul class="calcul">
+      <li><span>CO2 du véhicule${m.nedc ? " (vérifier : NEDC ou WLTP)" : ""}</span><b>${m.co2} g/km${m.ecartSeuil > 0 ? ` (+${m.ecartSeuil} g)` : ""}</b></li>
+      <li><span>Malus du barème 2026 pour ${m.co2} g/km</span><b>${fmt(m.bareme)} €</b></li>
+      <li><span>Décote pour ${m.ageMois} mois d'ancienneté</span><b>−${Math.round(m.decote * 100)} %</b></li>
+      <li><span>Malus estimé</span><b>${fmt(m.montant)} €</b></li></ul>`;
+  const futur = m.prochains.length && m.montant > 0 ? `<div class="etiquette mt">Si vous immatriculez plus tard</div>
+    <div class="grille grille-3 mt">${m.prochains.map((p) => `<div class="palier"><div class="tres-petit muted">À partir de ${p.date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</div><div class="num" style="font-weight:800">${fmt(p.montant)} €</div><div class="tres-petit c-bon">décote ${Math.round(p.decote * 100)} %</div></div>`).join("")}</div>` : "";
+  return `<div class="carte malus mt">${entete}${echelle}${calcul}${futur}
+    <p class="tres-petit muted mb0" style="margin-top:10px">Règle officielle : barème de l'année de première immatriculation à l'étranger, réduit selon l'âge du véhicule ; nul avant 2015. Montant exact sur le <a href="https://www.service-public.gouv.fr/particuliers/vosdroits/F35947" target="_blank" rel="noopener">site service-public.gouv.fr</a>, à reporter dans le champ « Malus CO2 officiel ».</p></div>`;
+}
+
 function blocImport(ci, saisie) {
   return `<h2>Coût réel de l'import (${esc(PAYS[saisie.pays].nom)} → France)</h2>
-    <div class="carte">
+    ${blocMalus(ci.impact)}
+    <div class="carte mt">
       ${ci.lignes.map((l) => `<div class="flex entre petit" style="padding:7px 0;border-bottom:1px solid var(--border)"><span>${esc(l.libelle)}${l.estime ? ' <span class="muted">(estim.)</span>' : ""}</span><b class="num">${fmt(Math.round(l.montant || 0))} €</b></div>`).join("")}
       <div class="flex entre" style="padding-top:10px"><b>Total une fois immatriculée en France</b><b class="num" style="font-size:18px">${fmt(Math.round(ci.total))} €</b></div>
     </div>
@@ -957,6 +986,7 @@ function brancherAnalyse(q) {
       imp: {
         mois: +fd.get("imp_mois") || 0, co2: +fd.get("imp_co2") || 0, masse: +fd.get("imp_masse") || 0, kw: +fd.get("imp_kw") || 0,
         cv: +fd.get("imp_cv") || 0, region: fd.get("imp_region"), transport: +fd.get("imp_transport") || 0,
+        malusOfficiel: fd.get("imp_malus") === "" ? null : +fd.get("imp_malus"),
         plaques: +fd.get("imp_plaques") || 0, coc: +fd.get("imp_coc") || 0, ct: +fd.get("imp_ct") || 0,
       },
     };
