@@ -39,7 +39,7 @@ export function interpreter(texte) {
   if (/\bessence\b/.test(t)) f.carburants.push("essence");
   if (/\b(diesel|gazole|gasoil)\b/.test(t)) f.carburants.push("diesel");
   if (/\bhybride?s?\b/.test(t)) f.carburants.push("hybride");
-  if (/\b(électrique|electrique)s?\b/.test(t)) f.carburants.push("électrique");
+  if (/(?<![a-zà-ÿ])([ée]lectriques?)(?![a-zà-ÿ])/.test(t)) f.carburants.push("électrique");
   if (f.carburants.length) compris.push(f.carburants.join(" ou "));
 
   const cyl = [
@@ -53,8 +53,8 @@ export function interpreter(texte) {
   else if (/\b(manuelle|bvm)\b/.test(t)) { f.boite = "manuelle"; compris.push("boîte manuelle"); }
 
   const carro = [
-    [/\bberlines?\b/, "berline"], [/\bbreaks?\b/, "break"], [/\b(suv|4x4)\b/, "suv"], [/\bcoup[ée]s?\b/, "coupé"],
-    [/\bcabrio(let)?s?\b/, "cabriolet"], [/\bcitadines?\b/, "citadine"], [/\bcompactes?\b/, "compacte"],
+    [/\bberlines?\b/, "berline"], [/\bbreaks?\b/, "break"], [/\b(suv|4x4)\b/, "suv"], [/\bcoup[ée]s?(?![a-zà-ÿ])/, "coupé"],
+    [/\bcabrio(let)?s?(?![a-zà-ÿ])/, "cabriolet"], [/\bcitadines?\b/, "citadine"], [/\bcompactes?\b/, "compacte"],
   ];
   for (const [re, c] of carro) if (re.test(t)) f.carrosseries.push(c);
   if (f.carrosseries.length) compris.push(f.carrosseries.join(" ou "));

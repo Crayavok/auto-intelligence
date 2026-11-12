@@ -8,6 +8,8 @@
 // confiance  : "élevée" | "moyenne" | "faible"
 // nature     : "consensus" (largement documenté) | "rappel" | "témoignages" | "statistique"
 
+import { BOITES_EXT } from "./boites-ext.js";
+
 export const BOITES = [
   {
     id: "psa_bvm6", nom: "Boîte manuelle 5/6 rapports PSA", type: "manuelle", fabricant: "PSA",
@@ -190,4 +192,5 @@ export const BOITES = [
     defauts: [],
     entretien: ["Vidange conseillée vers 80 000 km"],
   },
+  ...BOITES_EXT,
 ];

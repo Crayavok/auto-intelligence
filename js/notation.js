@@ -43,6 +43,10 @@ export function noteFiabilite(element, annee = null) {
   const details = [{ label: "Note de départ", delta: NOTE_BASE, base: true }];
   let score = NOTE_BASE;
   for (const d of element.defauts) {
+    if (d.horsFiabilite) {
+      details.push({ label: `${d.titre} : point d'achat, sans effet sur la fiabilité`, delta: 0 });
+      continue;
+    }
     if (!defautConcerne(d, annee)) {
       details.push({ label: `${d.titre} : non concerné pour ${annee}`, delta: 0 });
       continue;
@@ -116,14 +120,14 @@ export function toutesVersions() {
 // ─────────────────────────── Analyse d'une annonce ───────────────────────────
 
 export const PROFILS = {
-  fiabilite: { nom: "Priorité fiabilité", poids: { moteur: 35, boite: 20, entretien: 15, prix: 20, kilometrage: 0, etat: 10, revente: 0 } },
-  equilibre: { nom: "Équilibré", poids: { moteur: 25, boite: 15, entretien: 10, prix: 20, kilometrage: 15, etat: 10, revente: 5 } },
-  affaire: { nom: "Bonne affaire", poids: { moteur: 15, boite: 10, entretien: 10, prix: 40, kilometrage: 10, etat: 10, revente: 5 } },
+  fiabilite: { nom: "Priorité fiabilité", poids: { moteur: 35, boite: 20, entretien: 15, prix: 20, kilometrage: 0, etat: 10, revente: 0, batterie: 15 } },
+  equilibre: { nom: "Équilibré", poids: { moteur: 25, boite: 15, entretien: 10, prix: 20, kilometrage: 15, etat: 10, revente: 5, batterie: 15 } },
+  affaire: { nom: "Bonne affaire", poids: { moteur: 15, boite: 10, entretien: 10, prix: 40, kilometrage: 10, etat: 10, revente: 5, batterie: 15 } },
 };
 
 export const LIBELLES_NOTES = {
   moteur: "Fiabilité moteur", boite: "Fiabilité boîte / transmission", entretien: "Coût d'entretien",
-  prix: "Prix vs marché", kilometrage: "Kilométrage", etat: "État et historique", revente: "Potentiel de revente",
+  prix: "Prix vs marché", kilometrage: "Kilométrage", etat: "État et historique", revente: "Potentiel de revente", batterie: "Batterie (électriques)",
 };
 
 function noteKilometrage(moteur, annee, km, alertes) {
@@ -154,7 +158,24 @@ function noteKilometrage(moteur, annee, km, alertes) {
   return { score: clamp(Math.round(score), 5, 100), details };
 }
 
-function notePrix(modele, prix, valeur, alertes) {
+function notePrix(modele, prix, valeur, alertes, estimation = null, importe = false) {
+  const quoi = importe ? "Le coût total une fois en France" : "Le prix";
+  if (!(valeur > 0) && estimation?.valeur) {
+    const v = estimation.valeur;
+    const ecart = (v - prix) / v;
+    const score = clamp(Math.round(50 + ecart * 200), 0, 100);
+    const pct = Math.round(Math.abs(ecart) * 100);
+    if (ecart >= 0.3) {
+      alertes.push({ niveau: "vigilance", titre: "Prix très inférieur à l'estimation", texte: `${quoi} est ${pct} % sous la valeur estimée (${v.toLocaleString("fr-FR")} €). L'estimation est approximative : confirmez avec une cote, puis méfiez-vous d'un prix trop beau.` });
+    }
+    return {
+      score, ecart, insuffisant: true, estimation,
+      details: [
+        { label: `${quoi} (${Math.round(prix).toLocaleString("fr-FR")} €) est ${pct} % ${ecart >= 0 ? "sous" : "au-dessus de"} la valeur estimée de ${v.toLocaleString("fr-FR")} €`, delta: score, base: true },
+        { label: estimation.explication, delta: 0 },
+      ],
+    };
+  }
   if (valeur > 0) {
     const ecart = (valeur - prix) / valeur;
     const score = clamp(Math.round(50 + ecart * 200), 0, 100);
@@ -165,7 +186,7 @@ function notePrix(modele, prix, valeur, alertes) {
     }
     return {
       score, ecart,
-      details: [{ label: `${pct} % ${sens} la valeur de marché que vous avez indiquée (${valeur.toLocaleString("fr-FR")} €)`, delta: score, base: true }],
+      details: [{ label: `${importe ? "Coût total en France : " : ""}${pct} % ${sens} la valeur de marché que vous avez indiquée (${valeur.toLocaleString("fr-FR")} €)`, delta: score, base: true }],
     };
   }
   const [min, max] = modele.prix;
@@ -203,7 +224,22 @@ function noteEtat(a, alertes) {
  * Analyse complète d'une annonce saisie par l'utilisateur.
  * a = { modeleId, moteurId, boiteId, annee, km, prix, valeur, historique, proprietaires, ct, vendeur, lien }
  */
-export function analyserAnnonce(a, poids) {
+function noteBatterie(moteur, soh, alertes) {
+  if (moteur.carburant !== "électrique") return { score: null, details: [{ label: "Sans objet (véhicule thermique ou hybride)", delta: 0 }], sansObjet: true };
+  if (!soh) {
+    alertes.push({ niveau: "vigilance", titre: "État de la batterie inconnu", texte: "Demandez un certificat d'état de santé de la batterie (SOH) : c'est l'élément le plus coûteux d'une voiture électrique." });
+    return { score: null, details: [{ label: "SOH non renseigné : demandez un certificat batterie au vendeur", delta: 0 }] };
+  }
+  const score = clamp(Math.round(soh >= 95 ? 95 : soh >= 90 ? 85 + (soh - 90) * 2 : soh >= 80 ? 55 + (soh - 80) * 3 : soh >= 70 ? 25 + (soh - 70) * 3 : 15), 0, 100);
+  if (soh < 70) alertes.push({ niveau: "risque", titre: "Batterie très usée", texte: `SOH de ${soh} % : autonomie fortement réduite, remplacement possible à moyen terme.` });
+  else if (soh < 80) alertes.push({ niveau: "vigilance", titre: "Batterie usée", texte: `SOH de ${soh} % : vérifier si la garantie batterie (souvent 70 % sur 8 ans) s'applique encore.` });
+  return { score, details: [{ label: `État de santé de la batterie : ${soh} %`, delta: score, base: true }] };
+}
+
+/**
+ * contexte = { estimation: résultat de estimerValeur (facultatif), coutImport: résultat de coutImport (facultatif) }
+ */
+export function analyserAnnonce(a, poids, contexte = {}) {
   const modele = modeleParId[a.modeleId];
   const moteur = moteurParId[a.moteurId];
   const boite = boiteParId[a.boiteId];
@@ -223,10 +259,12 @@ export function analyserAnnonce(a, poids) {
   notes.moteur = { ...fm, insuffisant: fm.insuffisant };
   notes.boite = noteFiabilite(boite, a.annee);
   notes.entretien = noteEntretien(moteur, boite);
-  notes.prix = notePrix(modele, a.prix, a.valeur, alertes);
+  const prixCompare = contexte.coutImport ? contexte.coutImport.total : a.prix;
+  notes.prix = notePrix(modele, prixCompare, a.valeur, alertes, contexte.estimation, !!contexte.coutImport);
   notes.kilometrage = noteKilometrage(moteur, a.annee, a.km, alertes);
   notes.etat = noteEtat(a, alertes);
   notes.revente = noteRevente(modele);
+  notes.batterie = noteBatterie(moteur, a.soh, alertes);
 
   // Risques mécaniques et rappels applicables à l'année
   const risques = [];
@@ -246,6 +284,7 @@ export function analyserAnnonce(a, poids) {
   let somme = 0, poidsUtilise = 0, poidsTotal = 0;
   for (const [cle, p] of Object.entries(poids)) {
     if (!p) continue;
+    if (notes[cle]?.sansObjet) continue;
     poidsTotal += p;
     const s = notes[cle]?.score;
     if (s == null) continue;
@@ -255,7 +294,7 @@ export function analyserAnnonce(a, poids) {
   const couverture = poidsTotal ? poidsUtilise / poidsTotal : 0;
   const connaissance = Math.min(moteur?.connaissance ?? 0, boite?.connaissance ?? 0);
   let confiance = "faible";
-  if (couverture >= 0.9 && connaissance >= 70) confiance = "élevée";
+  if (couverture >= 0.9 && connaissance >= 70 && !notes.prix.insuffisant) confiance = "élevée";
   else if (couverture >= 0.7 && connaissance >= 50) confiance = "moyenne";
   const globale = couverture >= 0.5 ? Math.round(somme / poidsUtilise) : null;
 

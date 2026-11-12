@@ -42,9 +42,12 @@ export const stock = {
   ajouterAnalyse(entree) {
     const a = lire("analyses", []).filter((x) => x.id !== entree.id);
     a.unshift(entree);
-    ecrire("analyses", a.slice(0, 50));
+    ecrire("analyses", a.slice(0, 200));
   },
   supprimerAnalyse(id) { ecrire("analyses", lire("analyses", []).filter((x) => x.id !== id)); },
+
+  pref: (cle, defaut) => lire("pref:" + cle, defaut),
+  setPref: (cle, valeur) => ecrire("pref:" + cle, valeur),
 
   poids: () => lire("poids", null),
   setPoids: (p) => ecrire("poids", p),

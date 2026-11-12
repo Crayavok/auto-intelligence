@@ -9,6 +9,9 @@ import {
 import { interpreter, rechercher, ecarts, pourquoi, TRIS, MARQUES, CARROSSERIES } from "./recherche.js";
 import { stock } from "./stockage.js";
 import { extraireAnnonce } from "./import.js";
+import { estimerValeur } from "./valeur.js";
+import { coutImport, coutPossession, consoDefaut, PRIX_ENERGIE_DEFAUT, PAYS, REGIONS } from "./couts.js";
+import { aideAchat } from "./achat.js";
 
 // ─────────────────────────── Utilitaires ───────────────────────────
 const $ = (s, el = document) => el.querySelector(s);
@@ -69,6 +72,7 @@ function jauge(score, lib, { grande = false, approx = false } = {}) {
 }
 const pastille = (s) => `<span class="score-pastille ${niveau(s)}">${s ?? "—"}</span>`;
 const barre = (s) => `<div class="barre c-${niveau(s)}"><span style="width:${s ?? 0}%"></span></div>`;
+const descMoteur = (m) => `${m.architecture}${m.cylindree ? `, ${String(m.cylindree).replace(".", ",")} L` : ""} ${m.alimentation}`;
 const NIV_TEXTE = { bon: "Favorable", moyen: "Vigilance", mauvais: "Risque", inconnu: "Inconnu" };
 
 function badgeDefaut(d) {
@@ -82,7 +86,11 @@ function badgeDefaut(d) {
 function blocDefauts(defauts, annee = null) {
   if (!defauts.length) return `<p class="muted petit">Aucun défaut récurrent répertorié dans la base actuelle. Cela ne garantit pas l'absence de problème : la base est en cours de constitution.</p>`;
   return defauts.map((d) => `<div class="defaut g${d.gravite}" ${annee && !defautConcerne(d, annee) ? 'style="opacity:.55"' : ""}>
-    <div class="t">${esc(d.titre)}</div><p>${esc(d.detail)}</p><div class="badges">${badgeDefaut(d)}</div></div>`).join("");
+    <div class="t">${esc(d.titre)}</div><p>${esc(d.detail)}</p><div class="badges">${badgeDefaut(d)}</div>${blocSourcesDefaut(d)}</div>`).join("");
+}
+function blocSourcesDefaut(d) {
+  if (!d.sources?.length) return "";
+  return `<div class="tres-petit muted" style="margin-top:8px">Source : ${d.sources.map((x) => `${esc(x.titre)} (${x.annee})`).join(" ; ")}</div>`;
 }
 function blocCalcul(details) {
   return `<ul class="calcul">${details.map((d) => `<li><span>${esc(d.label)}</span><b>${d.base ? d.delta : d.delta === 0 ? "" : d.delta > 0 ? `+${d.delta}` : d.delta}</b></li>`).join("")}</ul>`;
@@ -190,7 +198,10 @@ function ecranAccueil() {
 }
 
 function ligneAnalyse(a) {
-  return `<a class="lien-ligne" href="#/analyse?id=${encodeURIComponent(a.id)}">${pastille(a.globale)}<div class="grow"><b>${esc(a.titre)}</b><div class="petit muted">${fmt(a.saisie.prix)} € · ${fmt(a.saisie.km)} km · ${a.saisie.annee}${a.opportunite ? ' · <span class="c-bon">Opportunité</span>' : ""}</div></div><span class="chev">›</span></a>`;
+  const h = a.historiquePrix ?? [];
+  const ecart = h.length > 1 ? h.at(-1).prix - h[0].prix : 0;
+  const pays = a.saisie.pays && a.saisie.pays !== "FR" ? ` · ${PAYS[a.saisie.pays]?.nom}` : "";
+  return `<a class="lien-ligne" href="#/analyse?id=${encodeURIComponent(a.id)}">${pastille(a.globale)}<div class="grow"><b>${esc(a.titre)}</b><div class="petit muted">${fmt(a.saisie.prix)} € · ${fmt(a.saisie.km)} km · ${a.saisie.annee}${pays}${a.opportunite ? ' · <span class="c-bon">Opportunité</span>' : ""}${ecart ? ` · <span class="${ecart < 0 ? "c-bon" : "c-mauvais"}">${ecart < 0 ? "↓" : "↑"} ${fmt(Math.abs(ecart))} €</span>` : ""}</div></div><span class="chev">›</span></a>`;
 }
 
 // ── Recherche (modes A, B, C)
@@ -214,8 +225,12 @@ function ecranRecherche(q) {
 
   // Filtres : depuis la phrase (mode C) ou depuis l'URL (mode A)
   const texte = q.get("q") || "";
-  let filtres, compris = [];
-  if (mode === "c" && texte) ({ filtres, compris } = interpreter(texte));
+  let filtres, compris = [], parIA = false;
+  if (mode === "c" && texte) {
+    const ia = cacheIA.get(texte);
+    if (ia) ({ filtres, compris } = ia), parIA = true;
+    else ({ filtres, compris } = interpreter(texte));
+  }
   else filtres = filtresDepuisUrl(q);
   const tri = q.get("tri") || filtres.priorite || "pertinence";
   const actif = texte || mode === "a";
@@ -226,7 +241,7 @@ function ecranRecherche(q) {
       <button class="btn btn-principal" type="submit">${I.recherche} Chercher</button>
     </form>
     ${texte ? `<div class="carte mt"><div class="etiquette">Critères compris</div><div class="puces mt">${compris.length ? compris.map((c) => `<span class="puce statique on">${esc(c)}</span>`).join("") : '<span class="muted petit">Aucun critère reconnu : essayez d\'indiquer un budget, un carburant, un type de moteur…</span>'}</div>
-      <p class="tres-petit muted mb0" style="margin-top:10px">Interprétation par mots-clés (l'IA conversationnelle sera branchée dans une prochaine version). <a href="#/recherche?${paramsDepuisFiltres(filtres, "a")}">Ajuster les critères</a></p></div>` : ""}`;
+      <p class="tres-petit muted mb0" style="margin-top:10px">${parIA ? "Interprétation par l'IA (serveur IA connecté)." : serveurIA() ? "Interprétation par mots-clés ; l'IA prend le relais dans un instant…" : "Interprétation par mots-clés. Un serveur IA facultatif peut être branché dans Sources et connexions."} <a href="#/recherche?${paramsDepuisFiltres(filtres, "a")}">Ajuster les critères</a></p></div>` : ""}`;
 
   const zoneA = formulaireCriteres(filtres);
 
@@ -332,7 +347,7 @@ function ecranVersion(modeleId, moteurId) {
   const fav = stock.estFavori(v.cle), cmp = stock.dansComparateur(v.cle);
   return `<a class="retour" href="#/modele/${modele.id}">‹ ${esc(modele.marque)} ${esc(modele.modele)} ${esc(modele.generation)}</a>
     <h1>${esc(modele.marque)} ${esc(modele.modele)}<br><span class="muted" style="font-size:20px">${esc(moteur.nom)}</span></h1>
-    <div class="meta"><span>${esc(modele.generation)}</span><span>${plage(mot.annees)}</span><span>${esc(moteur.carburant)}</span><span>${esc(moteur.architecture)} ${moteur.cylindree} L ${esc(moteur.alimentation)}</span><span>${mot.puissances.join(" / ")} ch</span></div>
+    <div class="meta"><span>${esc(modele.generation)}</span><span>${plage(mot.annees)}</span><span>${esc(moteur.carburant)}</span><span>${esc(descMoteur(moteur))}</span><span>${mot.puissances.join(" / ")} ch</span></div>
     <div class="carte">
       <div class="jauges x4">
         ${jauge(v.fiabMoteur.score, "Fiabilité moteur", { approx: v.fiabMoteur.insuffisant })}
@@ -402,10 +417,15 @@ function ecranMoteur(id) {
     <div class="carte"><table class="comparatif" style="min-width:0">
       <tr><th>Carburant</th><td>${esc(m.carburant)}</td></tr>
       <tr><th>Architecture</th><td>${esc(m.architecture)}</td></tr>
-      <tr><th>Cylindrée</th><td>${m.cylindree} L</td></tr>
+      ${m.cylindree ? `<tr><th>Cylindrée</th><td>${m.cylindree} L</td></tr>` : ""}
       <tr><th>Alimentation</th><td>${esc(m.alimentation)}</td></tr>
       <tr><th>Distribution</th><td>${esc(m.distribution)}</td></tr>
     </table></div>
+    ${m.batterie ? `<h2>Batterie</h2><div class="carte"><table class="comparatif" style="min-width:0">
+      <tr><th>Capacités</th><td>${m.batterie.capacites.map((c) => `${String(c).replace(".", ",")} kWh`).join(" / ")}</td></tr>
+      <tr><th>Autonomie</th><td>${esc(m.batterie.autonomie)}</td></tr>
+      <tr><th>Garantie usuelle</th><td>${esc(m.batterie.garantie)}</td></tr></table>
+      <p class="petit muted mb0">Avant tout achat, demandez un certificat d'état de santé de la batterie (SOH).</p></div>` : ""}
     <h2>Points forts</h2><div class="carte"><ul class="liste-points vert" style="margin:0">${m.forces.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
     <h2>Défauts connus</h2>${blocDefauts(m.defauts)}
     <details class="repli mt"><summary>Calcul de la note</summary><div class="contenu">${blocCalcul(f.details)}</div></details>
@@ -450,7 +470,10 @@ function ecranAnalyse(q) {
   const s = enregistree?.saisie ?? {
     lien: "", modeleId: q.get("modele") || "", moteurId: q.get("moteur") || "", boiteId: "",
     annee: "", km: "", prix: "", valeur: "", historique: "inconnu", proprietaires: "", ct: "inconnu", vendeur: "particulier",
+    pays: "FR", soh: "", imp: {},
   };
+  const imp = s.imp ?? {};
+  const region = imp.region ?? stock.pref("region", "Auvergne-Rhône-Alpes");
   const poids = enregistree?.poids ?? stock.poids() ?? { ...PROFILS.fiabilite.poids };
   const optModeles = MARQUES.map((mq) => `<optgroup label="${esc(mq)}">${MODELES.filter((m) => m.marque === mq).map((m) => `<option value="${m.id}" ${m.id === s.modeleId ? "selected" : ""}>${esc(m.modele)} ${esc(m.generation)} (${plage(m.annees)})</option>`).join("")}</optgroup>`).join("");
   const seg = (nom, opts, val) => `<div class="segment" data-seg="${nom}">${opts.map(([v, l]) => `<button type="button" data-val="${v}" class="${v === val ? "on" : ""}">${l}</button>`).join("")}</div><input type="hidden" name="${nom}" value="${esc(val)}">`;
@@ -485,8 +508,25 @@ function ecranAnalyse(q) {
           <div class="champ"><label>Kilométrage</label><input type="number" inputmode="numeric" name="km" value="${esc(s.km)}" placeholder="98000" required></div>
           <div class="champ"><label>Prix (€)</label><input type="number" inputmode="numeric" name="prix" value="${esc(s.prix)}" placeholder="12500" required></div>
         </div>
-        <div class="champ"><label>Valeur de marché estimée (€, facultatif)</label><input type="number" inputmode="numeric" name="valeur" value="${esc(s.valeur)}" placeholder="Cote La Centrale, L'argus, prix d'annonces comparables…">
-          <span class="tres-petit muted">Sans cote, la note de prix n'est pas calculée : l'application ne l'invente pas.</span></div>
+        <div class="champ"><label>Valeur de marché en France (€, facultatif)</label><input type="number" inputmode="numeric" name="valeur" value="${esc(s.valeur)}" placeholder="Cote La Centrale, L'argus…">
+          <span class="tres-petit muted">Sans cote, l'application utilise sa propre estimation, signalée comme approximative.</span></div>
+        <div class="champ"><span class="etiquette">Pays de l'annonce</span>${seg("pays", Object.entries(PAYS).map(([k, v]) => [k, v.nom]), s.pays || "FR")}</div>
+        <div class="champ" id="champ-soh" hidden><label>État de santé de la batterie (SOH, %)</label><input type="number" inputmode="numeric" name="soh" value="${esc(s.soh)}" placeholder="Ex. 92 (certificat batterie)"></div>
+      </div>
+      <div class="carte grille" id="bloc-import" hidden>
+        <div><h3>Import en France</h3><div class="petit muted">Informations de l'annonce ou du certificat de conformité (COC). Les montants proposés sont des estimations modifiables.</div></div>
+        <div class="grille grille-2">
+          <div class="champ"><label>Mois de 1re immatriculation</label><input type="number" inputmode="numeric" min="1" max="12" name="imp_mois" value="${esc(imp.mois ?? "")}" placeholder="1 à 12"></div>
+          <div class="champ"><label>CO2 (g/km)</label><input type="number" inputmode="numeric" name="imp_co2" value="${esc(imp.co2 ?? "")}" placeholder="Ex. 128"></div>
+          <div class="champ"><label>Masse à vide (kg)</label><input type="number" inputmode="numeric" name="imp_masse" value="${esc(imp.masse ?? "")}" placeholder="Ex. 1550"></div>
+          <div class="champ"><label>Puissance (kW)</label><input type="number" inputmode="numeric" name="imp_kw" value="${esc(imp.kw ?? "")}" placeholder="Ex. 140"></div>
+          <div class="champ"><label>CV fiscaux (si connus)</label><input type="number" inputmode="numeric" name="imp_cv" value="${esc(imp.cv ?? "")}" placeholder="Calculés sinon"></div>
+          <div class="champ"><label>Votre région</label><select name="imp_region">${Object.keys(REGIONS).map((r) => `<option ${r === region ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></div>
+          <div class="champ"><label>Transport (€)</label><input type="number" inputmode="numeric" name="imp_transport" value="${esc(imp.transport ?? "")}"></div>
+          <div class="champ"><label>Plaques de transit (€)</label><input type="number" inputmode="numeric" name="imp_plaques" value="${esc(imp.plaques ?? "")}"></div>
+          <div class="champ"><label>Certificat COC (€)</label><input type="number" inputmode="numeric" name="imp_coc" value="${esc(imp.coc ?? 150)}"></div>
+          <div class="champ"><label>Contrôle technique (€)</label><input type="number" inputmode="numeric" name="imp_ct" value="${esc(imp.ct ?? 80)}"></div>
+        </div>
       </div>
       <div class="carte grille">
         <div class="champ"><span class="etiquette">Historique d'entretien</span>${seg("historique", [["complet", "Complet"], ["partiel", "Partiel"], ["inconnu", "Inconnu"]], s.historique)}</div>
@@ -504,8 +544,8 @@ function ecranAnalyse(q) {
     <div id="resultat-analyse"></div>`;
 }
 
-function resultatAnalyse(r, saisie) {
-  const ordre = ["moteur", "boite", "entretien", "prix", "kilometrage", "etat", "revente"];
+function resultatAnalyse(r, saisie, { estimation, ci, aide, precedent, valeurFrance }) {
+  const ordre = ["moteur", "boite", "entretien", "prix", "kilometrage", "etat", "revente", ...(r.moteur.carburant === "électrique" ? ["batterie"] : [])];
   const titre = `${r.modele.marque} ${r.modele.modele} ${r.moteur.nom}`;
   const tri = { risque: 0, vigilance: 1, info: 2 };
   const alertes = [...r.alertes].sort((a, b) => tri[a.niveau] - tri[b.niveau]);
@@ -525,6 +565,8 @@ function resultatAnalyse(r, saisie) {
       </div>
     </div>
     ${r.globale == null ? `<p class="petit muted">Données insuffisantes pour une note globale fiable.</p>` : ""}
+    ${blocValeur(saisie, estimation, ci, valeurFrance)}
+    ${blocHistoriquePrix(precedent, saisie)}
     <h2>Alertes</h2>
     ${alertes.length ? alertes.map((a) => `<div class="alerte ${a.niveau}">${a.niveau === "info" ? I.info : I.alerte}<div><div class="t">${esc(a.titre)}</div><div class="x">${esc(a.texte)}</div></div></div>`).join("") : `<div class="alerte info">${I.info}<div><div class="t">Aucune alerte détectée</div><div class="x">Cela ne remplace pas une inspection : faites contrôler le véhicule avant l'achat.</div></div></div>`}
     <h2>Notes détaillées</h2>
@@ -542,11 +584,121 @@ function resultatAnalyse(r, saisie) {
         ["Rappels constructeur", "part", "Rappels connus listés ci-dessus"],
         ["Rapport d'historique payant", "off", "Non connecté (niveau 4)"]].map(([l, c, t]) => `<div class="flex entre"><span class="petit">${l}</span><span class="statut ${c}">${t}</span></div>`).join("")}
     </div>
+    ${ci ? blocImport(ci, saisie) : ""}
+    ${blocAchat(aide, saisie, ci)}
+    ${blocPossession(r, saisie, valeurFrance)}
     <div class="rangee-btns mt-l">
       <button class="btn btn-principal" id="btn-enregistrer">${I.etoile} Enregistrer l'analyse</button>
       <a class="btn" href="#/version/${r.modele.id}/${r.moteur.id}">Fiche du véhicule</a>
       ${saisie.lien ? `<a class="btn" href="${esc(saisie.lien)}" target="_blank" rel="noopener">Annonce originale</a>` : ""}
     </div>`;
+}
+
+function blocValeur(saisie, estimation, ci, valeurFrance) {
+  const source = saisie.valeur ? "Valeur que vous avez indiquée" : estimation.methode === "comparables" ? `Cote calculée sur ${estimation.n} de vos annonces comparables` : "Estimation par modèle de décote (approximative)";
+  const prixFinal = ci ? ci.total : saisie.prix;
+  const ecart = valeurFrance - prixFinal;
+  return `<div class="grille grille-2 mt">
+    <div class="carte kpi"><div class="libelle">Valeur en France</div><div class="valeur num" style="font-size:24px">${saisie.valeur ? "" : "≈ "}${fmt(valeurFrance)} €</div><div class="note">${esc(source)}${!saisie.valeur ? ` · confiance ${esc(estimation.confiance)}` : ""}</div></div>
+    <div class="carte kpi"><div class="libelle">${ci ? "Coût total une fois en France" : "Prix demandé"}</div><div class="valeur num" style="font-size:24px">${fmt(Math.round(prixFinal))} €</div><div class="note ${ecart >= 0 ? "c-bon" : "c-mauvais"}">${ecart >= 0 ? "Économie estimée" : "Surcoût estimé"} : ${fmt(Math.abs(Math.round(ecart)))} €</div></div>
+  </div>
+  ${!saisie.valeur ? `<details class="repli mt"><summary>Comment la valeur est estimée</summary><div class="contenu petit muted">${esc(estimation.explication)}</div></details>` : ""}`;
+}
+
+function blocHistoriquePrix(precedent, saisie) {
+  const h = [...(precedent?.historiquePrix ?? (precedent ? [{ date: precedent.date, prix: precedent.saisie.prix }] : []))];
+  if (!h.length) return "";
+  if (h.at(-1).prix !== saisie.prix) h.push({ date: new Date().toISOString(), prix: saisie.prix, nouveau: true });
+  if (h.length < 2) return `<p class="petit muted mt">Annonce déjà analysée le ${new Date(h[0].date).toLocaleDateString("fr-FR")}, prix inchangé.</p>`;
+  const ecart = h.at(-1).prix - h[0].prix;
+  return `<div class="alerte ${ecart < 0 ? "info" : "vigilance"} mt">${I.info}<div><div class="t">Suivi du prix : ${ecart < 0 ? "baisse" : "hausse"} de ${fmt(Math.abs(ecart))} €</div>
+    <div class="x">${h.map((x) => `${new Date(x.date).toLocaleDateString("fr-FR")} : ${fmt(x.prix)} €${x.nouveau ? " (non enregistré)" : ""}`).join(" → ")}${ecart < 0 ? ". Un vendeur qui baisse son prix est souvent ouvert à la négociation." : ""}</div></div></div>`;
+}
+
+function blocImport(ci, saisie) {
+  return `<h2>Coût réel de l'import (${esc(PAYS[saisie.pays].nom)} → France)</h2>
+    <div class="carte">
+      ${ci.lignes.map((l) => `<div class="flex entre petit" style="padding:7px 0;border-bottom:1px solid var(--border)"><span>${esc(l.libelle)}${l.estime ? ' <span class="muted">(estim.)</span>' : ""}</span><b class="num">${fmt(Math.round(l.montant || 0))} €</b></div>`).join("")}
+      <div class="flex entre" style="padding-top:10px"><b>Total une fois immatriculée en France</b><b class="num" style="font-size:18px">${fmt(Math.round(ci.total))} €</b></div>
+    </div>
+    <details class="repli mt"><summary>Détail des règles appliquées</summary><div class="contenu"><ul class="liste-points">${ci.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
+      <p class="tres-petit muted">Montants indicatifs. Règles officielles : <a href="https://www.service-public.gouv.fr/particuliers/vosdroits/F35947" target="_blank" rel="noopener">malus CO2</a> et <a href="https://www.service-public.gouv.fr/particuliers/vosdroits/F35950" target="_blank" rel="noopener">malus masse</a> sur service-public.gouv.fr.</p></div></details>`;
+}
+
+function blocAchat(aide, saisie, ci) {
+  const n = aide.negociation;
+  const cle = `check:${saisie.lien || `${saisie.modeleId}-${saisie.annee}-${saisie.km}`}`;
+  const coches = stock.pref(cle, []);
+  const monnaie = ci ? ` (prix ${esc(PAYS[saisie.pays].nom)})` : "";
+  return `<h2>Préparer l'achat</h2>
+    <div class="carte">
+      <div class="etiquette">Négociation${monnaie}</div>
+      <div class="grille grille-3 mt">
+        <div><div class="tres-petit muted">Première offre</div><div class="num" style="font-weight:800;font-size:18px">${fmt(n.ouverture)} €</div></div>
+        <div><div class="tres-petit muted">Prix cible</div><div class="num c-bon" style="font-weight:800;font-size:18px">${fmt(n.cible)} €</div></div>
+        <div><div class="tres-petit muted">À ne pas dépasser</div><div class="num" style="font-weight:800;font-size:18px">${fmt(n.plafond)} €</div></div>
+      </div>
+      ${n.arguments.length ? `<div class="etiquette mt">Arguments</div><ul class="liste-points">${n.arguments.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
+      <p class="tres-petit muted mb0" style="margin-top:10px">Aide indicative : remise visée de ${Math.round(n.remise * 100)} % selon les alertes et risques détectés, à partir de ${fmt(n.reference)} €.</p>
+    </div>
+    <details class="repli mt"><summary>Questions à poser au vendeur (${aide.questions.length})</summary><div class="contenu">
+      <ol class="petit" style="padding-left:20px;margin:0;display:grid;gap:6px">${aide.questions.map((q) => `<li>${esc(q)}</li>`).join("")}</ol>
+      <button type="button" class="btn mt" id="btn-copier-questions">${I.coller} Copier les questions</button>
+    </div></details>
+    <details class="repli mt" open><summary>Liste de visite</summary><div class="contenu" id="checklist" data-cle="${esc(cle)}">
+      ${aide.visite.map((g, gi) => `<div class="etiquette mt">${esc(g.titre)}</div>${g.items.map((it, i) => { const id = `${gi}-${i}`; return `<label class="coche"><input type="checkbox" data-id="${id}" ${coches.includes(id) ? "checked" : ""}><span>${esc(it)}</span></label>`; }).join("")}`).join("")}
+    </div></details>`;
+}
+
+function blocPossession(r, saisie, valeurFrance) {
+  const m = r.moteur;
+  const pref = stock.pref("possession", {});
+  const kmAn = pref.kmAn ?? 15000;
+  const conso = consoDefaut(m);
+  const prixE = pref[`prix_${m.carburant}`] ?? PRIX_ENERGIE_DEFAUT[m.carburant];
+  const assurance = pref.assurance ?? 700;
+  const unite = m.carburant === "électrique" ? "kWh/100 km" : "L/100 km";
+  return `<h2>Coût de possession</h2>
+    <div class="carte grille" id="possession" data-valeur="${valeurFrance}">
+      <div class="grille grille-2">
+        <div class="champ"><label>Kilomètres par an</label><input type="number" inputmode="numeric" id="tco-km" value="${kmAn}"></div>
+        <div class="champ"><label>Consommation (${unite})</label><input type="number" inputmode="decimal" step="0.1" id="tco-conso" value="${conso}"></div>
+        <div class="champ"><label>Prix ${m.carburant === "électrique" ? "du kWh" : "du litre"} (€)</label><input type="number" inputmode="decimal" step="0.01" id="tco-prix" value="${prixE}"></div>
+        <div class="champ"><label>Assurance (€/an)</label><input type="number" inputmode="numeric" id="tco-assurance" value="${assurance}"></div>
+      </div>
+      <div id="tco-resultat"></div>
+      <p class="tres-petit muted mb0">Consommation, prix de l'énergie et entretien sont des valeurs par défaut estimées : ajustez-les. Vos réglages sont mémorisés.</p>
+    </div>`;
+}
+
+function brancherResultat(r, saisie, valeurFrance) {
+  const majTCO = () => {
+    const kmAn = +$("#tco-km").value || 0, conso = +$("#tco-conso").value || 0, prix = +$("#tco-prix").value || 0, assurance = +$("#tco-assurance").value || 0;
+    const pref = stock.pref("possession", {});
+    stock.setPref("possession", { ...pref, kmAn, assurance, [`prix_${r.moteur.carburant}`]: prix });
+    const c = coutPossession({ moteur: r.moteur, modele: r.modele, valeur: valeurFrance, kmAn, conso, prixEnergie: prix, assurance });
+    const couleurs = ["var(--accent)", "var(--moyen)", "var(--faint)", "var(--mauvais)"];
+    $("#tco-resultat").innerHTML = `
+      <div class="grille grille-3">
+        <div><div class="tres-petit muted">Par an</div><div class="num" style="font-weight:800;font-size:20px">${fmt(Math.round(c.total))} €</div></div>
+        <div><div class="tres-petit muted">Par mois</div><div class="num" style="font-weight:800;font-size:20px">${fmt(Math.round(c.parMois))} €</div></div>
+        <div><div class="tres-petit muted">Par km</div><div class="num" style="font-weight:800;font-size:20px">${c.parKm.toFixed(2).replace(".", ",")} €</div></div>
+      </div>
+      <div class="barre-repartition mt">${c.lignes.map((l, i) => `<span style="width:${c.total ? (l.montant / c.total) * 100 : 0}%;background:${couleurs[i]}"></span>`).join("")}</div>
+      <div class="legende">${c.lignes.map((l, i) => `<span><i style="background:${couleurs[i]}"></i>${esc(l.libelle)} : ${fmt(l.montant)} €</span>`).join("")}</div>`;
+  };
+  $$("#possession input").forEach((i) => i.addEventListener("input", majTCO));
+  majTCO();
+
+  const liste = $("#checklist");
+  liste?.addEventListener("change", () => {
+    stock.setPref(liste.dataset.cle, $$("input:checked", liste).map((x) => x.dataset.id));
+  });
+  $("#btn-copier-questions")?.addEventListener("click", async () => {
+    const texte = $$("#btn-copier-questions")[0].previousElementSibling.innerText;
+    try { await navigator.clipboard.writeText(texte); toast("Questions copiées"); }
+    catch { toast("Copie impossible : sélectionnez le texte à la main"); }
+  });
 }
 
 // ── Comparateur
@@ -568,7 +720,7 @@ function ecranComparer() {
         ${ligne("Prix indicatif", (v) => `<span class="num">${keur(v.modele.prix[0])} – ${keur(v.modele.prix[1])}</span>`)}
         ${ligne("Années", (v) => plage(v.mot.annees))}
         ${ligne("Puissance", (v) => `${v.mot.puissances.join(" / ")} ch`)}
-        ${ligne("Moteur", (v) => `${esc(v.moteur.architecture)}, ${v.moteur.cylindree} L ${esc(v.moteur.alimentation)}`)}
+        ${ligne("Moteur", (v) => esc(descMoteur(v.moteur)))}
         ${ligne("Carburant", (v) => esc(v.moteur.carburant))}
         ${ligne("Distribution", (v) => esc(v.moteur.distribution))}
         ${ligne("Défauts majeurs", (v) => { const n = v.moteur.defauts.filter((d) => d.gravite === 3).length; return `<b class="${n ? "c-mauvais" : "c-bon"}">${n}</b>`; })}
@@ -599,7 +751,9 @@ function ecranSources() {
     ["HistoVec", "part", "Gratuit, mais le rapport doit être fourni par le vendeur. L'application vous le rappelle."],
     ["RappelConso (rappels officiels)", "part", "Rappels majeurs intégrés manuellement dans la base ; connexion automatique à venir."],
     ["Rapports d'historique payants", "off", "Niveau 4 : uniquement pour les véhicules présélectionnés, après accord avec un fournisseur."],
-    ["Intelligence artificielle (compréhension, synthèse)", "off", "Nécessite une clé d'API côté serveur (payante). Interprétation par mots-clés en attendant."],
+    ["Intelligence artificielle (compréhension des recherches)", serveurIA() ? "on" : "off", serveurIA() ? "Serveur IA configuré." : "Facultatif : nécessite un petit serveur et une clé d'API Claude (payante à l'usage). Interprétation par mots-clés en attendant."],
+    ["Lecture des captures d'écran", "on", "Reconnaissance de texte sur l'appareil (module téléchargé à la première utilisation)."],
+    ["Calculateur d'import", "part", "Règles 2026 de service-public.gouv.fr ; barème CO2 2026 appliqué en majorant pour les véhicules plus anciens."],
     ["Base de connaissances", "part", `${MOTEURS.length} moteurs, ${BOITES.length} boîtes, ${MODELES.length} générations. Première rédaction par IA, à vérifier.`],
   ];
   return `<h1>Sources et connexions</h1>
@@ -612,7 +766,13 @@ function ecranSources() {
       <p><b>Prix</b> : calculé uniquement si vous renseignez une valeur de marché. Jamais inventé.</p>
       <p style="margin-bottom:0"><b>Note globale</b> : moyenne pondérée selon vos priorités, ramenée aux notes disponibles, avec un niveau de confiance.</p>
     </div>
-    <p class="tres-petit muted mt-l">AUTO INTELLIGENCE · version 0.3 · Les informations fournies sont indicatives et ne remplacent pas l'inspection d'un professionnel.</p>`;
+    <h2>Serveur IA</h2>
+    <form class="carte grille" id="form-ia">
+      <div class="champ"><label for="url-ia">Adresse du serveur IA (facultatif)</label><input type="url" id="url-ia" value="${esc(serveurIA())}" placeholder="https://auto-intelligence-ia.….workers.dev"></div>
+      <div class="petit muted">Le code du serveur et sa notice d'installation sont dans le dossier <b>serveur</b> du dépôt GitHub. Votre clé d'API reste sur le serveur, jamais dans l'application.</div>
+      <button class="btn" type="submit">Enregistrer</button>
+    </form>
+    <p class="tres-petit muted mt-l">AUTO INTELLIGENCE · version 0.4 · Les informations fournies sont indicatives et ne remplacent pas l'inspection d'un professionnel.</p>`;
 }
 
 function introuvable() {
@@ -648,6 +808,15 @@ function rendre() {
   majPastilles();
   if (parts[0] === "analyse") brancherAnalyse(q);
   if (parts[0] === "recherche") brancherRecherche(q);
+  if (parts[0] === "sources") $("#form-ia")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("#url-ia").value.trim();
+    if (v && !/^https:\/\//.test(v)) { toast("L'adresse doit commencer par https://"); return; }
+    stock.setPref("serveurIA", v);
+    cacheIA.clear();
+    toast(v ? "Serveur IA enregistré" : "Serveur IA retiré");
+    rendre();
+  });
   if (parts[0] === undefined) brancherAccueil();
 }
 
@@ -667,7 +836,35 @@ function brancherAccueil() {
   });
 }
 
+// ── Serveur IA facultatif (voir serveur/LISEZMOI.md)
+const cacheIA = new Map();
+const serveurIA = () => stock.pref("serveurIA", "");
+
+async function interpreterParIA(texte) {
+  const rep = await fetch(`${serveurIA().replace(/\/$/, "")}/interpreter`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ texte }),
+  });
+  if (!rep.ok) throw new Error(`serveur IA : ${rep.status}`);
+  const j = await rep.json();
+  const liste = (x) => (Array.isArray(x) ? x : []);
+  return {
+    filtres: {
+      budget: j.budget ?? null, kmMax: j.kmMax ?? null, anneeMin: j.anneeMin ?? null,
+      carburants: liste(j.carburants), cylindres: liste(j.cylindres).map(Number), boite: j.boite ?? null,
+      carrosseries: liste(j.carrosseries), marques: liste(j.marques).filter((m) => MARQUES.includes(m)),
+      fiabMin: j.fiabMin ?? null, puissanceMin: j.puissanceMin ?? null, priorite: j.priorite ?? "pertinence",
+    },
+    compris: liste(j.compris),
+  };
+}
+
 function brancherRecherche(q) {
+  const texte = q.get("q");
+  if ((q.get("mode") || "c") === "c" && texte && serveurIA() && !cacheIA.has(texte)) {
+    interpreterParIA(texte)
+      .then((res) => { cacheIA.set(texte, res); if (lireRoute().q.get("q") === texte) rendre(); })
+      .catch(() => toast("Serveur IA injoignable : interprétation par mots-clés"));
+  }
   $$("[data-mode]").forEach((b) => b.addEventListener("click", () => { location.hash = `#/recherche?mode=${b.dataset.mode}`; }));
   $("#form-recherche")?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -728,6 +925,19 @@ function brancherAnalyse(q) {
     form[s.dataset.seg].value = b.dataset.val;
   }));
 
+  const majVisibilite = () => {
+    const pays = form.pays.value;
+    $("#bloc-import").hidden = pays === "FR";
+    if (pays !== "FR") {
+      if (!form.imp_transport.value) form.imp_transport.value = PAYS[pays].transport;
+      if (!form.imp_plaques.value) form.imp_plaques.value = PAYS[pays].plaques;
+    }
+    $("#champ-soh").hidden = moteurParId[form.moteurId.value]?.carburant !== "électrique";
+  };
+  form.addEventListener("click", (e) => { if (e.target.closest('[data-seg="pays"]')) setTimeout(majVisibilite, 0); });
+  form.addEventListener("change", majVisibilite);
+  majVisibilite();
+
   const majPoids = () => Object.keys(LIBELLES_NOTES).forEach((k) => { $(`[data-v="${k}"]`).textContent = form[`p_${k}`].value; });
   form.addEventListener("input", (e) => { if (e.target.name?.startsWith("p_")) majPoids(); });
   $$("[data-profil]").forEach((b) => b.addEventListener("click", () => {
@@ -743,6 +953,12 @@ function brancherAnalyse(q) {
       lien: (fd.get("lien") || "").trim(), modeleId: fd.get("modeleId"), moteurId: fd.get("moteurId"), boiteId: fd.get("boiteId"),
       annee: +fd.get("annee"), km: +fd.get("km"), prix: +fd.get("prix"), valeur: +fd.get("valeur") || 0,
       historique: fd.get("historique"), ct: fd.get("ct"), vendeur: fd.get("vendeur"), proprietaires: +fd.get("proprietaires") || 0,
+      pays: fd.get("pays") || "FR", soh: +fd.get("soh") || 0,
+      imp: {
+        mois: +fd.get("imp_mois") || 0, co2: +fd.get("imp_co2") || 0, masse: +fd.get("imp_masse") || 0, kw: +fd.get("imp_kw") || 0,
+        cv: +fd.get("imp_cv") || 0, region: fd.get("imp_region"), transport: +fd.get("imp_transport") || 0,
+        plaques: +fd.get("imp_plaques") || 0, coc: +fd.get("imp_coc") || 0, ct: +fd.get("imp_ct") || 0,
+      },
     };
     if (!saisie.modeleId || !saisie.moteurId || !saisie.boiteId || !saisie.annee || !saisie.prix || fd.get("km") === "") {
       toast("Complétez le modèle, l'année, le kilométrage et le prix");
@@ -751,15 +967,28 @@ function brancherAnalyse(q) {
     if (saisie.annee < 1950 || saisie.annee > ANNEE_COURANTE + 1) { toast("Année invalide"); return; }
     const poids = Object.fromEntries(Object.keys(LIBELLES_NOTES).map((k) => [k, +fd.get(`p_${k}`)]));
     stock.setPoids(poids);
-    const r = analyserAnnonce(saisie, poids);
-    derniereAnalyse = { r, saisie, poids, id: enregistree?.id };
-    $("#resultat-analyse").innerHTML = resultatAnalyse(r, saisie);
+    stock.setPref("region", saisie.imp.region);
+    const modele = modeleParId[saisie.modeleId], moteur = moteurParId[saisie.moteurId];
+    const mot = modele.motorisations.find((m) => m.moteur === saisie.moteurId);
+    const precedent = enregistree ?? trouverPrecedent(saisie);
+    const estimation = estimerValeur({ modele, mot, moteur, annee: saisie.annee, km: saisie.km }, stock.analyses(), precedent?.id);
+    const ci = saisie.pays !== "FR"
+      ? coutImport({ ...saisie.imp, pays: saisie.pays, prix: saisie.prix, annee: saisie.annee, km: saisie.km, carburant: moteur.carburant })
+      : null;
+    const r = analyserAnnonce(saisie, poids, { estimation, coutImport: ci });
+    const valeurFrance = saisie.valeur || estimation.valeur;
+    // Pour une annonce étrangère, la référence de négociation est le prix étranger qui donne un coût total égal à la valeur France
+    const valeurRef = ci ? valeurFrance - (ci.total - saisie.prix) : valeurFrance;
+    const aide = aideAchat(r, saisie, valeurRef);
+    derniereAnalyse = { r, saisie, poids, id: precedent?.id, precedent };
+    $("#resultat-analyse").innerHTML = resultatAnalyse(r, saisie, { estimation, ci, aide, precedent, valeurFrance });
     $("#btn-enregistrer").addEventListener("click", enregistrer);
+    brancherResultat(r, saisie, valeurFrance, precedent?.id);
     if (defiler) $("#ancre-resultat").scrollIntoView({ behavior: "smooth", block: "start" });
   };
   form.addEventListener("submit", (e) => { e.preventDefault(); lancer(true); });
   if (enregistree) lancer(false);
-  brancherImport(form, { remplirMoteurs, remplirBoites, lancer });
+  brancherImport(form, { remplirMoteurs, remplirBoites, lancer, majVisibilite });
 }
 
 // ── Lecture de texte sur image (OCR) : module Tesseract.js chargé à la demande depuis un CDN,
@@ -814,7 +1043,7 @@ async function lireImages(fichiers, maj) {
 }
 
 // ── Import d'annonce (coller / glisser-déposer / image)
-function brancherImport(form, { remplirMoteurs, remplirBoites, lancer }) {
+function brancherImport(form, { remplirMoteurs, remplirBoites, lancer, majVisibilite }) {
   const zone = $("#zone-import"), zoneTexte = $("#texte-annonce"), retour = $("#retour-import");
 
   const choisirSegment = (nom, val) => {
@@ -838,11 +1067,21 @@ function brancherImport(form, { remplirMoteurs, remplirBoites, lancer }) {
       if (champs[k] != null) { form[k].value = champs[k]; marquer(form[k]); }
     }
     for (const k of ["historique", "ct", "vendeur"]) if (champs[k]) choisirSegment(k, champs[k]);
+    choisirSegment("pays", champs.pays ?? "FR");
+    if (champs.soh) { form.soh.value = champs.soh; marquer(form.soh); }
+    for (const [k, nom] of [["co2", "imp_co2"], ["masse", "imp_masse"], ["kw", "imp_kw"]]) {
+      if (champs[k]) { form[nom].value = champs[k]; marquer(form[nom]); }
+    }
+    const mois = texte.match(/(?:erstzulassung|mise en circulation|\bez\b)\s*:?\s*(\d{1,2})\s*[\/.]\s*(?:19|20)\d{2}/i);
+    if (mois) form.imp_mois.value = +mois[1];
+    majVisibilite();
+    const deja = champs.lien ? stock.analyses().find((a) => a.saisie.lien === champs.lien) : null;
 
     retour.innerHTML = `<div class="sep"></div>
       ${reconnus.length ? `<div class="etiquette">Informations trouvées</div><div class="puces mt">${reconnus.map(([l, v]) => `<span class="puce statique on"><span class="muted">${esc(l)} :</span> ${esc(v)}</span>`).join("")}</div>` : ""}
       ${marqueHorsBase ? `<div class="alerte vigilance mt">${I.alerte}<div><div class="t">${esc(marqueHorsBase)} n'est pas encore dans la base</div><div class="x">La marque est reconnue, mais ses modèles n'ont pas encore de fiche : l'analyse complète sera possible quand elle aura été ajoutée.</div></div></div>`
         : aVerifier.length ? `<div class="alerte vigilance mt">${I.alerte}<div><div class="t">À vérifier ou compléter : ${esc(aVerifier.join(", "))}</div><div class="x">Corrigez ces champs dans le formulaire ci-dessous, puis touchez Analyser.</div></div></div>` : ""}
+      ${deja ? `<div class="alerte info mt">${I.info}<div><div class="t">Annonce déjà analysée le ${new Date(deja.date).toLocaleDateString("fr-FR")}</div><div class="x">Prix à l'époque : ${fmt(deja.saisie.prix)} €${champs.prix && champs.prix !== deja.saisie.prix ? ` · aujourd'hui : ${fmt(champs.prix)} € (${champs.prix < deja.saisie.prix ? "baisse" : "hausse"} de ${fmt(Math.abs(deja.saisie.prix - champs.prix))} €)` : ""}. Enregistrez la nouvelle analyse pour suivre l'évolution du prix.</div></div></div>` : ""}
       ${depuisImage ? `<p class="tres-petit muted">Texte lu automatiquement sur l'image : vérifiez les valeurs, la lecture peut se tromper (il est modifiable ci-dessus).</p>` : ""}
       ${champs.historique || champs.ct ? `<p class="tres-petit muted">L'historique et le contrôle technique sont repris de ce qu'annonce le vendeur : demandez les justificatifs.</p>` : ""}`;
 
@@ -927,17 +1166,32 @@ function brancherImport(form, { remplirMoteurs, remplirBoites, lancer }) {
   });
 }
 
+/** Retrouve une analyse déjà enregistrée de la même annonce (même lien, ou même véhicule à ±3 000 km). */
+function trouverPrecedent(saisie) {
+  return stock.analyses().find((a) => {
+    const s = a.saisie;
+    if (saisie.lien && s.lien) return s.lien === saisie.lien;
+    return s.modeleId === saisie.modeleId && s.moteurId === saisie.moteurId && s.annee === saisie.annee
+      && Math.abs(s.km - saisie.km) <= 3000 && (s.pays ?? "FR") === (saisie.pays ?? "FR") && (!saisie.lien || !s.lien);
+  }) ?? null;
+}
+
 function enregistrer() {
   if (!derniereAnalyse) return;
-  const { r, saisie, poids } = derniereAnalyse;
+  const { r, saisie, poids, precedent } = derniereAnalyse;
   const id = derniereAnalyse.id || `a${Date.now()}`;
   derniereAnalyse.id = id;
+  const maintenant = new Date().toISOString();
+  const historiquePrix = [...(precedent?.historiquePrix ?? (precedent ? [{ date: precedent.date, prix: precedent.saisie.prix }] : []))];
+  if (!historiquePrix.length || historiquePrix.at(-1).prix !== saisie.prix) historiquePrix.push({ date: maintenant, prix: saisie.prix });
   stock.ajouterAnalyse({
-    id, date: new Date().toISOString(), saisie, poids,
+    id, date: maintenant, saisie, poids, historiquePrix,
     titre: `${r.modele.marque} ${r.modele.modele} · ${r.moteur.nom}`,
     globale: r.globale, opportunite: r.opportunite,
   });
-  toast("Analyse enregistrée dans vos favoris");
+  derniereAnalyse.precedent = stock.analyses().find((a) => a.id === id);
+  const ecart = historiquePrix.length > 1 ? historiquePrix.at(-1).prix - historiquePrix[0].prix : 0;
+  toast(ecart < 0 ? `Enregistré · baisse de prix de ${fmt(-ecart)} € suivie` : precedent ? "Analyse mise à jour" : "Analyse enregistrée dans vos favoris");
 }
 
 document.addEventListener("click", (e) => {

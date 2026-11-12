@@ -5,7 +5,7 @@
 import { MODELES } from "./data/modeles.js";
 import { moteurParId, boiteParId, ANNEE_COURANTE } from "./notation.js";
 
-const NOMBRE = "(\\d{1,3}(?:[\\s.\\u202f\\u00a0']\\d{3})+|\\d+)";
+const NOMBRE = "(?<![\\d.,])(\\d{1,3}(?:[\\s.\\u202f\\u00a0']\\d{3})+|\\d+)";
 const versNombre = (s) => parseInt(String(s).replace(/[^\d]/g, ""), 10);
 
 // Comment reconnaître chaque modèle de la base dans un texte libre
@@ -25,6 +25,26 @@ const ALIAS = {
   "bmw-serie5-f10-550i": /\b550i\b|\bs[ée]rie\s*5\b|\b5er\b/,
   "audi-s5-b8": /\bs5\b/,
   "ford-mustang-6": /\bmustang\b/,
+  "land-rover-rrs-2": /range\s*rover\s*sport|\brrs\b/,
+  "land-rover-evoque-1": /\bevoque\b/,
+  "mini-r56": /\bcooper\s*s\b|\bjcw\b|john cooper works|\br56\b/,
+  "mini-f56": /\bcooper\b|\bf56\b/,
+  "smart-fortwo-453": /\bfor\s?two\b|\bfor\s?four\b/,
+  "smart-eq": /\beq\s*for\s?(two|four)\b|\bsmart\s*eq\b/,
+  "maserati-ghibli-3": /\bghibli\b/,
+  "audi-a3-8v": /\ba3\b/,
+  "audi-a4-b9": /\ba4\b/,
+  "mercedes-c-w205": /\bclasse\s*c\b|\bc-klasse\b|\bc\s?(180|200|220|250|300)\s?d?\b|\bw205\b/,
+  "skoda-octavia-3": /\boctavia\b/,
+  "dacia-duster-2": /\bduster\b/,
+  "dacia-sandero-3": /\bsandero\b/,
+  "porsche-911-997": /\b911\b|\b997\b|\bcarrera\b/,
+  "porsche-macan-1": /\bmacan\b/,
+  "volvo-xc60-2": /\bxc\s?60\b/,
+  "renault-zoe": /\bzo[ée](?![a-z])/,
+  "tesla-model-3": /\bmodel\s*3\b/,
+  "nissan-leaf-2": /\bleaf\b/,
+  "hyundai-kona-ev": /\bkona\b/,
 };
 
 // Marques reconnues, y compris celles qui ne sont pas encore dans la base
@@ -49,7 +69,7 @@ function trouverMarque(t) {
 function trouverAnnee(t) {
   const prioritaire = t.match(/(?:mise en circulation|1[èe]re (?:mise en circulation|immatriculation)|erstzulassung|\bez\b|ann[ée]e(?:[\s-]mod[èe]le)?|baujahr|mod[èe]le)\s*:?\s*(?:\d{1,2}\s*[\/.\-]\s*)?((?:19|20)\d{2})/);
   if (prioritaire) return +prioritaire[1];
-  for (const m of t.matchAll(/(?<!\d|\d[.,]|\d\s)(?:\d{1,2}[\/.])?((?:19[5-9]|20[0-3])\d)(?!\d|[.,]\d|\s\d{3}\b|\s*(?:€|km|ch|cv|ps|kw|cm))/g)) {
+  for (const m of t.matchAll(/(?<!\d|\d[.,]|\d\s)(?:\d{1,2}[\/.])?((?:19[5-9]|20[0-3])\d)(?!\d|[.,]\d|\s*(?:€|km|ch|cv|ps|kw|cm))/g)) {
     const a = +m[1];
     if (a >= 1950 && a <= ANNEE_COURANTE + 1) return a;
   }
@@ -88,7 +108,7 @@ const MOTS_MANUELLE = /manuelle|\bbvm\d?\b|schaltgetriebe|\bmanual\b|handschaltu
 
 function choisirBoite(t, mot) {
   const boites = mot.boites.map((id) => boiteParId[id]);
-  const specifiques = [[/\beat\s?6\b/, "eat6"], [/\beat\s?8\b/, "eat8"], [/\bedc\b/, "renault_edc"], [/\bdsg\s?7\b|dq200/, "dq200"], [/\bdsg\s?6\b|dq250/, "dq250"]];
+  const specifiques = [[/\beat\s?6\b/, "eat6"], [/\beat\s?8\b/, "eat8"], [/\bedc\b/, "renault_edc"], [/\bdsg\s?7\b|dq200/, "dq200"], [/\bdsg\s?6\b|dq250/, "dq250"], [/\bpdk\b/, "porsche_pdk"], [/tiptronic/, "porsche_tip"], [/9g[\s-]?tronic/, "mb_9g"], [/7g[\s-]?tronic/, "mb_7g"]];
   for (const [re, prefixe] of specifiques) {
     if (re.test(t)) {
       const b = boites.find((x) => x.id.startsWith(prefixe));
@@ -106,19 +126,25 @@ function choisirBoite(t, mot) {
   return { boite: boites[0], sur: boites.length === 1 };
 }
 
-function choisirMoteur(t, modele, puissance) {
+function choisirMoteur(t, modele, puissance, annee) {
   let meilleur = null;
   for (const mot of modele.motorisations) {
     const m = moteurParId[mot.moteur];
     let score = 0;
-    const familles = m.nom.match(/PureTech|BlueHDi|TCe|dCi|TSI|TDI|Hybride|Skyactiv-[GD]|V8/gi) ?? [];
+    if (annee) score += annee >= mot.annees[0] && annee <= mot.annees[1] ? 3 : -3;
+    const familles = m.nom.match(/PureTech|BlueHDi|TCe|SCe|dCi|TSI|TDI|THP|Ingenium|Hybride|Skyactiv-[GD]|V8|V6|biturbo|compresseur/gi) ?? [];
+    if (m.carburant === "électrique" && /[ée]lectri|elektro|\bev\b|kwh/.test(t)) score += 4;
     for (const f of familles) if (t.includes(f.toLowerCase())) score += 3;
     if (m.carburant === "hybride" && /hybrid/.test(t)) score += 3;
-    const cyl = m.cylindree.toFixed(1);
-    if (t.includes(cyl) || t.includes(cyl.replace(".", ","))) score += 2;
+    if (m.cylindree) {
+      const cyl = m.cylindree.toFixed(1);
+      if (t.includes(cyl) || t.includes(cyl.replace(".", ","))) score += 2;
+    }
     if (puissance && mot.puissances.some((p) => Math.abs(p - puissance) <= 3)) score += 3;
     if (m.carburant === "diesel" && /diesel|gazole/.test(t)) score += 1;
     if (m.carburant === "essence" && /essence|benzin/.test(t)) score += 1;
+    if (m.carburant !== "diesel" && /diesel|gazole/.test(t)) score -= 2;
+    if (m.carburant === "diesel" && /essence|benzin/.test(t)) score -= 2;
     if (m.code && t.includes(m.code.toLowerCase().split(" ")[0])) score += 2;
     if (!meilleur || score > meilleur.score) meilleur = { mot, score };
   }
@@ -162,7 +188,7 @@ export function extraireAnnonce(texteBrut) {
   if (modele) {
     champs.modeleId = modele.id;
     reconnus.push(["Modèle", `${modele.marque} ${modele.modele} ${modele.generation}`]);
-    const choix = choisirMoteur(t, modele, puissance);
+    const choix = choisirMoteur(t, modele, puissance, annee);
     champs.moteurId = choix.mot.moteur;
     reconnus.push(["Motorisation", moteurParId[choix.mot.moteur].nom]);
     if (choix.score < 3 && modele.motorisations.length > 1) aVerifier.push("motorisation");
@@ -188,6 +214,24 @@ export function extraireAnnonce(texteBrut) {
   const proprio = t.match(/(\d)\s*(?:propri[ée]taires?|mains?\b|fahrzeughalter|vorbesitzer|halter)|(?:fahrzeughalter|vorbesitzer|propri[ée]taires?)\s*:?\s*(\d)/);
   if (/premi[èe]re main|1[èe]re main/.test(t)) { champs.proprietaires = 1; reconnus.push(["Propriétaires", "1 (première main)"]); }
   else if (proprio) { champs.proprietaires = +(proprio[1] || proprio[2]); reconnus.push(["Propriétaires", String(champs.proprietaires)]); }
+
+  // Pays de l'annonce, CO2, masse, puissance en kW, état de batterie (utiles au calculateur d'import)
+  const domaine = champs.lien ? new URL(champs.lien).hostname : "";
+  if (/\.de$|mobile\.de/.test(domaine) || (/erstzulassung|kilometerstand|fahrzeughalter/.test(t) && !/\.at$|\.be$/.test(domaine))) champs.pays = "DE";
+  if (/\.at$|willhaben/.test(domaine) || /österreich|oesterreich/.test(t)) champs.pays = "AT";
+  if (/\.be$|2ememain|2dehands/.test(domaine) || /belgique|belgi[eë]/.test(t)) champs.pays = "BE";
+  if (/leboncoin|lacentrale|\.fr$/.test(domaine)) champs.pays = "FR";
+  if (champs.pays && champs.pays !== "FR") reconnus.push(["Pays", { DE: "Allemagne", AT: "Autriche", BE: "Belgique" }[champs.pays]]);
+
+  const co2 = t.match(/co(?:2|₂)[^0-9]{0,40}?(\d{2,3})\s*g\s*\/\s*km/);
+  if (co2) { champs.co2 = +co2[1]; reconnus.push(["CO2", `${champs.co2} g/km`]); }
+  const masse = t.match(/(?:leergewicht|poids(?: à vide)?|masse(?: en ordre de marche)?|gewicht)\s*:?\s*(\d[\d.\s\u202f]{2,6})\s*kg/);
+  if (masse) { champs.masse = versNombre(masse[1]); reconnus.push(["Masse", `${champs.masse.toLocaleString("fr-FR")} kg`]); }
+  const kw = t.match(/(\d{2,3})\s*kw\b(?!h)/);
+  if (kw) champs.kw = +kw[1];
+  else if (puissance) champs.kw = Math.round(puissance / 1.36);
+  const soh = t.match(/(?:soh|[ée]tat de (?:sant[ée] de )?la batterie|batteriezustand)\s*:?\s*(\d{2,3})\s*%/);
+  if (soh) { champs.soh = +soh[1]; reconnus.push(["Batterie (SOH)", `${champs.soh} %`]); }
 
   return { champs, reconnus, aVerifier, marque, marqueHorsBase };
 }

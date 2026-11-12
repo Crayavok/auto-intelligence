@@ -6,6 +6,8 @@
 // kmReference  : durée de vie indicative du moteur bien entretenu, utilisée pour contextualiser le kilométrage.
 // connaissance : « Indice de connaissance du véhicule » (0-100) : quantité et qualité des informations disponibles.
 
+import { MOTEURS_EXT } from "./moteurs-ext.js";
+
 export const MOTEURS = [
   // ───────────── PSA / Stellantis ─────────────
   {
@@ -14,7 +16,7 @@ export const MOTEURS = [
     distribution: "courroie humide", kmReference: 200000, connaissance: 92, coutEntretien: "modéré",
     forces: ["Sobre et vif", "Bon agrément en usage quotidien"],
     defauts: [
-      { titre: "Dégradation de la courroie de distribution humide", detail: "La courroie baignant dans l'huile se désagrège : les particules colmatent la crépine de pompe à huile, avec un risque de casse moteur, et peuvent perturber l'assistance de freinage. Stellantis a mis en place un programme d'extension de prise en charge sous conditions d'entretien : vérifier l'éligibilité.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2013-2022" },
+      { titre: "Dégradation de la courroie de distribution humide", detail: "La courroie baignant dans l'huile se désagrège : les particules colmatent la crépine de pompe à huile, avec un risque de casse moteur, et peuvent perturber l'assistance de freinage. Stellantis a mis en place un programme d'extension de prise en charge sous conditions d'entretien : vérifier l'éligibilité.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2013-2022", sources: [{ titre: "Stellantis : programme d'extension de prise en charge des moteurs 1.2 PureTech", annee: 2023 }], question: "La courroie de distribution a-t-elle été remplacée ? À quel kilométrage ? Avez-vous la facture ?" },
       { titre: "Consommation d'huile excessive", detail: "Surconsommation liée à la segmentation, aggravant l'usure de la courroie.", gravite: 2, recurrence: "fréquente", confiance: "moyenne", nature: "témoignages", annees: "2013-2022" },
     ],
     entretien: ["Huile à la norme exacte préconisée, vidanges rapprochées", "Remplacement de la courroie selon l'intervalle révisé par le constructeur", "Contrôler le niveau d'huile régulièrement"],
@@ -79,7 +81,7 @@ export const MOTEURS = [
     distribution: "chaîne", kmReference: 180000, connaissance: 85, coutEntretien: "modéré",
     forces: ["Agréable et performant pour sa cylindrée"],
     defauts: [
-      { titre: "Surconsommation d'huile pouvant mener à la casse", detail: "Défaut documenté de segmentation : consommation d'huile importante, dégradation de la chaîne, casse moteur possible.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2012-2016" },
+      { titre: "Surconsommation d'huile pouvant mener à la casse", detail: "Défaut documenté de segmentation : consommation d'huile importante, dégradation de la chaîne, casse moteur possible.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2012-2016", question: "Un test de consommation d'huile ou une intervention Renault a-t-il été fait ? Avez-vous les justificatifs ?" },
       { titre: "Saut de chaîne de distribution", detail: "Conséquence fréquente du manque d'huile.", gravite: 3, recurrence: "fréquente", confiance: "moyenne", nature: "témoignages", annees: "2012-2016" },
     ],
     entretien: ["Contrôle du niveau d'huile tous les 1 000 km", "Vérifier les reprogrammations et prises en charge déjà faites"],
@@ -157,7 +159,7 @@ export const MOTEURS = [
     distribution: "courroie", kmReference: 300000, connaissance: 90, coutEntretien: "modéré",
     forces: ["Endurant", "Bon couple"],
     defauts: [
-      { titre: "Affaire Dieselgate : rappel logiciel antipollution", detail: "Moteur concerné par le logiciel de fraude aux émissions ; rappel avec mise à jour. Vérifier que l'intervention a été réalisée.", gravite: 2, recurrence: "confirmée", confiance: "élevée", nature: "rappel", annees: "2008-2015" },
+      { titre: "Affaire Dieselgate : rappel logiciel antipollution", detail: "Moteur concerné par le logiciel de fraude aux émissions ; rappel avec mise à jour. Vérifier que l'intervention a été réalisée.", gravite: 2, recurrence: "confirmée", confiance: "élevée", nature: "rappel", annees: "2008-2015", sources: [{ titre: "Affaire des moteurs diesel Volkswagen EA189 (« Dieselgate »)", annee: 2015 }], question: "La mise à jour du rappel antipollution a-t-elle été effectuée ?" },
       { titre: "EGR et injecteurs après mise à jour", detail: "Retours de problèmes d'EGR ou d'injecteurs après la mise à jour du rappel.", gravite: 2, recurrence: "occasionnelle", confiance: "faible", nature: "témoignages" },
       { titre: "Volant moteur bimasse", detail: "Usure classique.", gravite: 2, recurrence: "fréquente", confiance: "moyenne", nature: "consensus" },
     ],
@@ -198,8 +200,8 @@ export const MOTEURS = [
     distribution: "chaîne (côté boîte)", kmReference: 250000, connaissance: 90, coutEntretien: "élevé",
     forces: ["Performant et sobre"],
     defauts: [
-      { titre: "Casse de la chaîne de distribution", detail: "Chaîne et guides placés côté boîte : usure, bruit de sifflement puis casse possible. Remplacement coûteux car moteur à déposer.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2007-2014" },
-      { titre: "Rappel refroidisseur EGR", detail: "Rappel BMW (2018) : fuite possible du refroidisseur EGR avec risque d'incendie. Vérifier que l'intervention a été réalisée.", gravite: 2, recurrence: "confirmée", confiance: "élevée", nature: "rappel" },
+      { titre: "Casse de la chaîne de distribution", detail: "Chaîne et guides placés côté boîte : usure, bruit de sifflement puis casse possible. Remplacement coûteux car moteur à déposer.", gravite: 3, recurrence: "confirmée", confiance: "élevée", nature: "consensus", annees: "2007-2014", question: "La chaîne de distribution a-t-elle été remplacée ? Avez-vous la facture ?" },
+      { titre: "Rappel refroidisseur EGR", detail: "Rappel BMW (2018) : fuite possible du refroidisseur EGR avec risque d'incendie. Vérifier que l'intervention a été réalisée.", gravite: 2, recurrence: "confirmée", confiance: "élevée", nature: "rappel", sources: [{ titre: "Rappel BMW des refroidisseurs EGR sur moteurs diesel", annee: 2018 }] },
     ],
     entretien: ["Écouter tout sifflement à l'arrière du moteur", "Vidanges rapprochées"],
     privilegier: "Chaîne remplacée avec facture.",
@@ -335,7 +337,7 @@ export const MOTEURS = [
     distribution: "chaîne", kmReference: 400000, connaissance: 70, coutEntretien: "élevé",
     forces: ["Grande longévité", "Douceur exceptionnelle", "Décote forte : beaucoup de voiture pour le prix"],
     defauts: [
-      { titre: "Rappel : ressorts de soupapes", detail: "Rappel Toyota/Lexus (2010) pour des ressorts de soupapes susceptibles de casser sur les premières productions. Vérifier que l'intervention a été réalisée.", gravite: 3, recurrence: "occasionnelle", confiance: "élevée", nature: "rappel", annees: "2006-2008" },
+      { titre: "Rappel : ressorts de soupapes", detail: "Rappel Toyota/Lexus (2010) pour des ressorts de soupapes susceptibles de casser sur les premières productions. Vérifier que l'intervention a été réalisée.", gravite: 3, recurrence: "occasionnelle", confiance: "élevée", nature: "rappel", annees: "2006-2008", sources: [{ titre: "Rappel Toyota / Lexus des ressorts de soupapes des V8 UR", annee: 2010 }] },
       { titre: "Pompe à eau", detail: "Fuite possible à kilométrage élevé.", gravite: 1, recurrence: "occasionnelle", confiance: "moyenne", nature: "témoignages" },
     ],
     entretien: ["Vérifier la réalisation des rappels", "Suspension pneumatique (selon version) à contrôler"],
@@ -408,4 +410,5 @@ export const MOTEURS = [
     privilegier: "Gros rouleurs sur autoroute.",
     eviter: "Usage urbain, niveau d'huile au-dessus du maximum.",
   },
+  ...MOTEURS_EXT,
 ];

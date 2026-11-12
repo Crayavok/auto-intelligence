@@ -5,6 +5,8 @@
 // revente    : "forte" | "moyenne" | "faible" (estimation de la tenue de valeur)
 // collection : 0-100 ou null (intérêt collection, seulement lorsque pertinent)
 
+import { MODELES_EXT } from "./modeles-ext.js";
+
 export const MODELES = [
   {
     id: "peugeot-308-2", marque: "Peugeot", modele: "308", generation: "II (T9)", annees: [2013, 2021],
@@ -158,4 +160,5 @@ export const MODELES = [
       { moteur: "ford_coyote50", puissances: [421, 450], annees: [2015, 2023], boites: ["ford_mt82", "ford_6r80", "ford_10r80"] },
     ],
   },
+  ...MODELES_EXT,
 ];

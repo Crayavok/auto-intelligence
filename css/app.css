@@ -327,3 +327,7 @@ table.comparatif thead td { font-weight: 750; font-size: 14px; }
 .rempli { border-color: var(--bon) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--bon) 22%, transparent); transition: box-shadow .3s; }
 .ocr-etat { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
 .btn:disabled { opacity: .55; cursor: progress; }
+.coche { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; font-size: 13.5px; cursor: pointer; }
+.coche input { width: 19px; height: 19px; margin: 0; flex: none; accent-color: var(--bon); }
+.coche input:checked + span { color: var(--muted); text-decoration: line-through; }
+b.num, .valeur.num { white-space: nowrap; }
