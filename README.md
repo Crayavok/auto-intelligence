@@ -9,7 +9,8 @@ Assistant intelligent d'achat de voitures d'occasion : recherche, fiabilité par
 2. Toucher **Partager**, puis **Sur l'écran d'accueil**.
 3. L'application s'ouvre ensuite en plein écran, comme une application classique.
 
-## Version 0.2 : ce qui fonctionne
+## Version 0.3 : ce qui fonctionne
+- **Lecture de captures d'écran et de photos** : la reconnaissance de texte (Tesseract.js, en français et en allemand) s'exécute sur l'appareil ; l'image n'est envoyée à aucun serveur. Le module (quelques Mo) est téléchargé à la première utilisation.
 - **Import d'annonce** : collez (ou glissez-déposez) le texte d'une annonce Leboncoin, La Centrale, AutoScout24 ou mobile.de. Prix, kilométrage, année, modèle, motorisation, boîte, vendeur, historique et contrôle technique sont reconnus (texte français ou allemand) et l'analyse se lance automatiquement.
 - **Recherche en description libre** (mode C) : la phrase est transformée en critères (budget, carburant, cylindres, boîte, carrosserie, marque, fiabilité, puissance), avec des alternatives « auxquelles vous n'auriez pas pensé ».
 - **Recherche par critères** (mode A) et **par marque et modèle** (mode B).

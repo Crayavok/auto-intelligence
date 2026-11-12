@@ -35,6 +35,7 @@ const I = {
   source: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 6 .5l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 10a4 4 0 0 0-6-.5l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/></svg>`,
   fleche: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
   importer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;flex:none;color:var(--accent-2);margin-top:2px"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>`,
+  photo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>`,
   coller: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></svg>`,
   voiture: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16h14v-3l-2-5H7l-2 5z"/><circle cx="8" cy="16.5" r="1.5"/><circle cx="16" cy="16.5" r="1.5"/></svg>`,
 };
@@ -458,8 +459,11 @@ function ecranAnalyse(q) {
     <p class="sous-titre">Importez une annonce ou renseignez ses informations : l'application calcule les notes, détecte les risques et les incohérences.</p>
     <div class="carte zone-import" id="zone-import">
       <div class="flex" style="align-items:flex-start">${I.importer}<div><h3>Importer une annonce</h3>
-        <div class="petit muted">Sur l'annonce (Leboncoin, La Centrale, AutoScout24, mobile.de…), sélectionnez tout le texte et copiez-le, puis collez-le ici. Sur iPad ou ordinateur, vous pouvez aussi le glisser-déposer.</div></div></div>
-      <textarea id="texte-annonce" rows="4" placeholder="Collez ou glissez ici le texte de l'annonce…"></textarea>
+        <div class="petit muted">Prenez une capture d'écran de l'annonce (Leboncoin, La Centrale, AutoScout24, mobile.de…) ou une photo, ou bien copiez son texte et collez-le ici. Sur iPad ou ordinateur, vous pouvez aussi glisser-déposer.</div></div></div>
+      <button type="button" class="btn btn-plein" id="btn-photo">${I.photo} Capture d'écran ou photo</button>
+      <input type="file" id="fichier-image" accept="image/*" multiple hidden>
+      <div id="ocr-etat" class="ocr-etat" hidden><div class="flex entre petit"><span id="ocr-texte">Préparation…</span><b id="ocr-pct" class="num"></b></div><div class="barre" style="color:var(--accent)"><span id="ocr-barre" style="width:0%"></span></div></div>
+      <textarea id="texte-annonce" rows="4" placeholder="…ou collez ici le texte de l'annonce"></textarea>
       <div class="rangee-btns">
         <button type="button" class="btn" id="btn-coller">${I.coller} Coller</button>
         <button type="button" class="btn btn-principal" id="btn-extraire" style="flex:1">Remplir l'analyse</button>
@@ -608,7 +612,7 @@ function ecranSources() {
       <p><b>Prix</b> : calculé uniquement si vous renseignez une valeur de marché. Jamais inventé.</p>
       <p style="margin-bottom:0"><b>Note globale</b> : moyenne pondérée selon vos priorités, ramenée aux notes disponibles, avec un niveau de confiance.</p>
     </div>
-    <p class="tres-petit muted mt-l">AUTO INTELLIGENCE · version 0.2 · Les informations fournies sont indicatives et ne remplacent pas l'inspection d'un professionnel.</p>`;
+    <p class="tres-petit muted mt-l">AUTO INTELLIGENCE · version 0.3 · Les informations fournies sont indicatives et ne remplacent pas l'inspection d'un professionnel.</p>`;
 }
 
 function introuvable() {
@@ -758,7 +762,58 @@ function brancherAnalyse(q) {
   brancherImport(form, { remplirMoteurs, remplirBoites, lancer });
 }
 
-// ── Import d'annonce (coller / glisser-déposer)
+// ── Lecture de texte sur image (OCR) : module Tesseract.js chargé à la demande depuis un CDN,
+// exécuté entièrement sur l'appareil (l'image n'est envoyée à aucun serveur).
+const OCR_SCRIPT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+
+function chargerOCR() {
+  if (window.Tesseract) return Promise.resolve();
+  return new Promise((ok, ko) => {
+    const s = document.createElement("script");
+    s.src = OCR_SCRIPT;
+    s.onload = ok;
+    s.onerror = () => ko(new Error("Le module de lecture d'images n'a pas pu être téléchargé (vérifiez votre connexion)"));
+    document.head.appendChild(s);
+  });
+}
+
+/** Réduit les très grandes photos pour accélérer la lecture. */
+async function preparerImage(fichier) {
+  try {
+    const bmp = await createImageBitmap(fichier);
+    const max = 2200;
+    const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    if (k === 1) return fichier;
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise((ok) => c.toBlob((b) => ok(b || fichier), "image/jpeg", 0.92));
+  } catch { return fichier; }
+}
+
+async function lireImages(fichiers, maj) {
+  maj("Chargement du module de lecture…", null);
+  await chargerOCR();
+  let courant = 0;
+  const worker = await window.Tesseract.createWorker(["fra", "deu"], 1, {
+    logger: (m) => {
+      if (m.status === "recognizing text") maj(`Lecture de l'image${fichiers.length > 1 ? ` ${courant + 1}/${fichiers.length}` : ""}…`, (courant + m.progress) / fichiers.length);
+      else if (/loading|initializ/.test(m.status)) maj("Préparation de la lecture (plus long la première fois)…", m.progress);
+    },
+  });
+  const textes = [];
+  try {
+    for (courant = 0; courant < fichiers.length; courant++) {
+      const { data } = await worker.recognize(await preparerImage(fichiers[courant]));
+      textes.push(data.text);
+    }
+  } finally {
+    await worker.terminate();
+  }
+  return textes.join("\n");
+}
+
+// ── Import d'annonce (coller / glisser-déposer / image)
 function brancherImport(form, { remplirMoteurs, remplirBoites, lancer }) {
   const zone = $("#zone-import"), zoneTexte = $("#texte-annonce"), retour = $("#retour-import");
 
@@ -769,7 +824,7 @@ function brancherImport(form, { remplirMoteurs, remplirBoites, lancer }) {
   };
   const marquer = (el) => { el.classList.add("rempli"); setTimeout(() => el.classList.remove("rempli"), 2500); };
 
-  const extraire = () => {
+  const extraire = (depuisImage = false) => {
     const texte = zoneTexte.value.trim();
     if (texte.length < 10) { toast("Collez d'abord le texte d'une annonce"); return; }
     const { champs, reconnus, aVerifier, marqueHorsBase } = extraireAnnonce(texte);
@@ -788,6 +843,7 @@ function brancherImport(form, { remplirMoteurs, remplirBoites, lancer }) {
       ${reconnus.length ? `<div class="etiquette">Informations trouvées</div><div class="puces mt">${reconnus.map(([l, v]) => `<span class="puce statique on"><span class="muted">${esc(l)} :</span> ${esc(v)}</span>`).join("")}</div>` : ""}
       ${marqueHorsBase ? `<div class="alerte vigilance mt">${I.alerte}<div><div class="t">${esc(marqueHorsBase)} n'est pas encore dans la base</div><div class="x">La marque est reconnue, mais ses modèles n'ont pas encore de fiche : l'analyse complète sera possible quand elle aura été ajoutée.</div></div></div>`
         : aVerifier.length ? `<div class="alerte vigilance mt">${I.alerte}<div><div class="t">À vérifier ou compléter : ${esc(aVerifier.join(", "))}</div><div class="x">Corrigez ces champs dans le formulaire ci-dessous, puis touchez Analyser.</div></div></div>` : ""}
+      ${depuisImage ? `<p class="tres-petit muted">Texte lu automatiquement sur l'image : vérifiez les valeurs, la lecture peut se tromper (il est modifiable ci-dessus).</p>` : ""}
       ${champs.historique || champs.ct ? `<p class="tres-petit muted">L'historique et le contrôle technique sont repris de ce qu'annonce le vendeur : demandez les justificatifs.</p>` : ""}`;
 
     const complet = champs.modeleId && champs.annee && champs.km != null && champs.prix;
@@ -800,8 +856,43 @@ function brancherImport(form, { remplirMoteurs, remplirBoites, lancer }) {
     }
   };
 
-  $("#btn-extraire").addEventListener("click", extraire);
-  zoneTexte.addEventListener("paste", () => setTimeout(extraire, 50));
+  $("#btn-extraire").addEventListener("click", () => extraire());
+
+  // Lecture d'images (captures d'écran, photos)
+  const etat = $("#ocr-etat"), boutonPhoto = $("#btn-photo");
+  const traiterImages = async (fichiers) => {
+    const images = [...fichiers].filter((f) => f.type.startsWith("image/") || /\.(heic|jpe?g|png|webp)$/i.test(f.name));
+    if (!images.length) return false;
+    etat.hidden = false; boutonPhoto.disabled = true;
+    const maj = (texte, pct) => {
+      $("#ocr-texte").textContent = texte;
+      $("#ocr-pct").textContent = pct == null ? "" : `${Math.round(pct * 100)} %`;
+      $("#ocr-barre").style.width = `${Math.round((pct ?? 0) * 100)}%`;
+    };
+    try {
+      const texte = await lireImages(images, maj);
+      zoneTexte.value = texte.trim();
+      if (!zoneTexte.value) throw new Error("Aucun texte trouvé sur l'image");
+      extraire(true);
+    } catch (err) {
+      retour.innerHTML = `<div class="alerte vigilance mt">${I.alerte}<div><div class="t">Lecture de l'image impossible</div><div class="x">${esc(err.message)}. Vous pouvez aussi copier le texte de l'annonce et le coller ci-dessus.</div></div></div>`;
+    } finally {
+      etat.hidden = true; boutonPhoto.disabled = false; $("#fichier-image").value = "";
+    }
+    return true;
+  };
+  boutonPhoto.addEventListener("click", () => $("#fichier-image").click());
+  $("#fichier-image").addEventListener("change", (e) => traiterImages(e.target.files));
+
+  zoneTexte.addEventListener("paste", (e) => {
+    const fichiers = e.clipboardData?.files;
+    if (fichiers?.length && [...fichiers].some((f) => f.type.startsWith("image/"))) {
+      e.preventDefault();
+      traiterImages(fichiers);
+      return;
+    }
+    setTimeout(() => extraire(), 50);
+  });
   $("#btn-coller").addEventListener("click", async () => {
     try {
       const texte = await navigator.clipboard.readText();
@@ -826,7 +917,7 @@ function brancherImport(form, { remplirMoteurs, remplirBoites, lancer }) {
     }
     const fichier = dt.files?.[0];
     if (!texte && fichier) {
-      if (fichier.type.startsWith("image/")) { toast("Les captures d'écran ne sont pas encore lues : copiez le texte de l'annonce"); return; }
+      if (await traiterImages(dt.files)) return;
       texte = await fichier.text();
       if (/html/.test(fichier.type) || /<html/i.test(texte)) texte = new DOMParser().parseFromString(texte, "text/html").body.innerText;
     }

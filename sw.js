@@ -1,6 +1,6 @@
 // Service worker : fonctionnement hors ligne.
 // Stratégie « réseau d'abord » : la dernière version publiée est toujours chargée si une connexion existe.
-const CACHE = "autointel-v2";
+const CACHE = "autointel-v3";
 const FICHIERS = [
   "./", "./index.html", "./manifest.webmanifest", "./css/app.css",
   "./js/app.js", "./js/notation.js", "./js/recherche.js", "./js/stockage.js", "./js/import.js",
